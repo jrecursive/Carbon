@@ -20,6 +20,7 @@ CARBON_DURABLE_PATHS=(
   "sync-official-staging.sh"
   "drop-temp-patches.sh"
   "SCRIPTS-README.md"
+  "install-server-carbon-dll.sh"
   "upgrade-staging.sh"
   "tools/build/linux/bootstrap.sh"
   "tools/build/linux/update.sh"

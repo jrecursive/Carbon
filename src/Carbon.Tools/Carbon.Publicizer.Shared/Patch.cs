@@ -86,12 +86,17 @@ public class Patch : IDisposable
 
 		public override AssemblyDefinition Resolve(AssemblyNameReference name)
 		{
-			return Resolve(name, new ReaderParameters());
+			return ResolveAssembly(name, new ReaderParameters { AssemblyResolver = this });
 		}
 
 		public override AssemblyDefinition Resolve(AssemblyNameReference name, ReaderParameters parameters)
 		{
-			if (_cache.TryGetValue(name.FullName, out var assembly))
+			return ResolveAssembly(name, parameters);
+		}
+
+		private AssemblyDefinition ResolveAssembly(AssemblyNameReference name, ReaderParameters parameters)
+		{
+			if (_cache.TryGetValue (name.FullName, out var assembly))
 				return assembly;
 
 			parameters ??= new ReaderParameters();
@@ -145,7 +150,7 @@ public class Patch : IDisposable
 		protected override void Dispose (bool disposing)
 		{
 			foreach (var assembly in _cache.Values)
-				assembly.Dispose ();
+				assembly?.Dispose ();
 
 			_cache.Clear ();
 

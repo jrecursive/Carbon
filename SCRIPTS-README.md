@@ -65,7 +65,7 @@ What it does:
 
 - reads the installed Rust staging managed DLLs
 - updates and publicizes Rust references
-- builds DebugUnix Carbon artifacts
+- builds ReleaseUnix Carbon artifacts and official generated hooks
 - installs the built managed files into the staging server Carbon directory
 
 Useful environment variables:
@@ -74,10 +74,38 @@ Useful environment variables:
 CARBON_STAGING_ROOT=/home/johnm/rust-staging-autoupdate/server
 CARBON_STAGING_MANAGED_PATH=/home/johnm/rust-staging-autoupdate/server/RustDedicated_Data/Managed
 CARBON_STAGING_CARBON_MANAGED_PATH=/home/johnm/rust-staging-autoupdate/server/carbon/managed
+CARBON_BUILD_CONFIGURATION=ReleaseUnix
 CARBON_RELEASES_ENDPOINT=https://api.carbonmod.gg/releases
 ```
 
 Defaults are already set for the current local staging server layout.
+
+## Install Built Carbon.dll On The Dedicated Server
+
+Run this after making a narrow Carbon runtime change and building `src/Carbon/bin/ReleaseUnix/Carbon.dll`:
+
+```bash
+./install-server-carbon-dll.sh
+```
+
+What it does:
+
+- compares the built `Carbon.dll` with the dedicated server's installed copy
+- exits cleanly if the installed DLL is already current
+- backs up the current installed DLL with a timestamped `.bak-codex-*` suffix
+- copies the built DLL into the server's `carbon/managed` directory
+- verifies the installed hash after copying
+
+Useful environment variables:
+
+```bash
+CARBON_BUILT_DLL=/home/johnm/git/rust-platform/Carbon/src/Carbon/bin/ReleaseUnix/Carbon.dll
+CARBON_BUILD_CONFIGURATION=ReleaseUnix
+CARBON_STAGING_ROOT=/home/johnm/rust-staging-autoupdate/server
+CARBON_STAGING_CARBON_MANAGED_PATH=/home/johnm/rust-staging-autoupdate/server/carbon/managed
+```
+
+The server must be restarted to load the replacement DLL if it is already running.
 
 ## Sync After Official Carbon Staging Updates
 
@@ -134,6 +162,7 @@ save-pipeline-work.sh
 sync-official-staging.sh
 drop-temp-patches.sh
 SCRIPTS-README.md
+install-server-carbon-dll.sh
 upgrade-staging.sh
 tools/build/linux/bootstrap.sh
 tools/build/linux/update.sh
