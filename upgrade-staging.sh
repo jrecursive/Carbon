@@ -6,7 +6,8 @@ ROOT="$(cd -- "$(dirname "$0")" >/dev/null 2>&1 && pwd -P)"
 STAGING_ROOT="${CARBON_STAGING_ROOT:-/home/johnm/rust-staging-autoupdate/server}"
 STAGING_MANAGED="${CARBON_STAGING_MANAGED_PATH:-${STAGING_ROOT}/RustDedicated_Data/Managed}"
 STAGING_CARBON_MANAGED="${CARBON_STAGING_CARBON_MANAGED_PATH:-${STAGING_ROOT}/carbon/managed}"
-BUILD_MANAGED="${ROOT}/release/.tmp/DebugUnix/carbon/managed"
+CARBON_BUILD_CONFIGURATION="${CARBON_BUILD_CONFIGURATION:-ReleaseUnix}"
+BUILD_MANAGED="${ROOT}/release/.tmp/${CARBON_BUILD_CONFIGURATION}/carbon/managed"
 CARBON_RELEASES_ENDPOINT="${CARBON_RELEASES_ENDPOINT:-https://api.carbonmod.gg/releases}"
 CARBON_RELEASE_TAG="rustbeta_staging_build"
 
@@ -82,10 +83,10 @@ git pull --ff-only
 echo "Syncing and publicizing installed staging Rust DLLs..."
 CARBON_STAGING_MANAGED_PATH="${STAGING_MANAGED}" tools/build/linux/update.sh staging
 
-echo "Building DebugUnix Carbon artifacts and hooks as ${CARBON_RELEASE_TAG} ${OFFICIAL_STAGING_VERSION}..."
-VERSION="${OFFICIAL_STAGING_VERSION}" tools/build/linux/build.sh DebugUnix "RUST_STAGING%3BHOOKGEN" "${CARBON_RELEASE_TAG}" -noarchive
+echo "Building ${CARBON_BUILD_CONFIGURATION} Carbon artifacts and official generated hooks as ${CARBON_RELEASE_TAG} ${OFFICIAL_STAGING_VERSION}..."
+VERSION="${OFFICIAL_STAGING_VERSION}" tools/build/linux/build.sh "${CARBON_BUILD_CONFIGURATION}" "RUST_STAGING" "${CARBON_RELEASE_TAG}" -noarchive
 
-require_dir "${BUILD_MANAGED}" "DebugUnix build managed directory"
+require_dir "${BUILD_MANAGED}" "${CARBON_BUILD_CONFIGURATION} build managed directory"
 require_file "${BUILD_MANAGED}/Carbon.dll" "built Carbon.dll"
 require_file "${BUILD_MANAGED}/Carbon.Preloader.dll" "built Carbon.Preloader.dll"
 require_file "${BUILD_MANAGED}/hooks/Carbon.Hooks.Base.dll" "built Carbon.Hooks.Base.dll"
@@ -102,9 +103,9 @@ fi
 
 echo "Verified built Carbon.Preloader.dll version: ${BUILT_PRELOADER_VERSION}"
 
-echo "Installing DebugUnix managed artifacts..."
+echo "Installing ${CARBON_BUILD_CONFIGURATION} managed artifacts..."
 mkdir -p "${STAGING_CARBON_MANAGED}"
 cp -a "${BUILD_MANAGED}/." "${STAGING_CARBON_MANAGED}/"
 
-echo "Installed Carbon DebugUnix managed artifacts into ${STAGING_CARBON_MANAGED}"
+echo "Installed Carbon ${CARBON_BUILD_CONFIGURATION} managed artifacts into ${STAGING_CARBON_MANAGED}"
 echo "Self-update can remain enabled: official Carbon will replace this custom build when ${CARBON_RELEASE_TAG} changes from ${OFFICIAL_STAGING_VERSION}."

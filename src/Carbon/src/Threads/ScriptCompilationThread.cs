@@ -254,10 +254,15 @@ public class ScriptCompilationThread : BaseThreadedJob
 
 		public override AssemblyDefinition Resolve(AssemblyNameReference name)
 		{
-			return Resolve(name, new ReaderParameters());
+			return ResolveAssembly(name, new ReaderParameters { AssemblyResolver = this });
 		}
 
 		public override AssemblyDefinition Resolve(AssemblyNameReference name, ReaderParameters parameters)
+		{
+			return ResolveAssembly(name, parameters);
+		}
+
+		private AssemblyDefinition ResolveAssembly(AssemblyNameReference name, ReaderParameters parameters)
 		{
 			if (cache.TryGetValue(name.FullName, out var assembly))
 				return assembly;
@@ -310,7 +315,7 @@ public class ScriptCompilationThread : BaseThreadedJob
 		protected override void Dispose(bool disposing)
 		{
 			foreach (var assembly in cache.Values)
-				assembly.Dispose();
+				assembly?.Dispose();
 
 			cache.Clear();
 
