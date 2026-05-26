@@ -29,6 +29,9 @@ src/Carbon.Components/Carbon.Common/src/Carbon/Build.cs
 # Project release folder
 [Rr]elease/
 
+# Local install backups
+*.bak-codex-*
+
 # Rust managed files
 [Rr]ust/
 
