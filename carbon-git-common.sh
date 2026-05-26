@@ -79,6 +79,12 @@ carbon_require_clean_worktree() {
   fi
 }
 
+carbon_require_work_branch() {
+  if [[ "$(carbon_current_branch)" != "${CARBON_WORK_BRANCH}" ]]; then
+    carbon_die "Expected branch ${CARBON_WORK_BRANCH}. Run ./fork-init.sh first."
+  fi
+}
+
 carbon_print_context() {
   carbon_log "Repo: ${CARBON_REPO_ROOT}"
   carbon_log "Branch: $(carbon_current_branch)"

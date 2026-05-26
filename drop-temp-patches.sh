@@ -10,6 +10,7 @@ carbon_cd_repo
 
 carbon_log "Dropping temporary patches and keeping only durable staging pipeline files."
 carbon_print_context
+carbon_require_work_branch
 carbon_require_clean_worktree
 carbon_fetch_remotes
 

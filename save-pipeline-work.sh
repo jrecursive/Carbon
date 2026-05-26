@@ -13,10 +13,7 @@ carbon_cd_repo
 carbon_log "Saving current work to the fork branch."
 carbon_print_context
 
-if [[ "$(carbon_current_branch)" != "${CARBON_WORK_BRANCH}" ]]; then
-  carbon_die "Expected branch ${CARBON_WORK_BRANCH}. Run ./fork-init.sh first."
-fi
-
+carbon_require_work_branch
 carbon_commit_if_dirty "${MESSAGE}"
 carbon_push_work_branch
 
