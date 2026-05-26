@@ -227,8 +227,63 @@ public class HookEx : IDisposable, IHook
 		{
 			MethodType.Getter => AccessTools.PropertyGetter(TargetType, TargetMethod),
 			MethodType.Setter => AccessTools.PropertySetter(TargetType, TargetMethod),
-			_ => AccessTools.Method(TargetType, TargetMethod, TargetMethodArgs) ?? null
+			_ => AccessTools.Method(TargetType, TargetMethod, TargetMethodArgs) ?? GetCompilerGeneratedLocalFunctionTarget()
 		};
+	}
+
+	private MethodInfo GetCompilerGeneratedLocalFunctionTarget()
+	{
+		if (TargetType == null || string.IsNullOrEmpty(TargetMethod) || TargetMethodArgs == null)
+		{
+			return null;
+		}
+
+		int suffixIndex = TargetMethod.LastIndexOf('|');
+		if (suffixIndex < 0 || !TargetMethod.StartsWith("<") || !TargetMethod.Contains(">g__"))
+		{
+			return null;
+		}
+
+		string stablePrefix = TargetMethod[..(suffixIndex + 1)];
+		MethodInfo result = null;
+
+		foreach (MethodInfo method in AccessTools.GetDeclaredMethods(TargetType))
+		{
+			if (!method.Name.StartsWith(stablePrefix))
+			{
+				continue;
+			}
+
+			ParameterInfo[] parameters = method.GetParameters();
+			if (parameters.Length != TargetMethodArgs.Length)
+			{
+				continue;
+			}
+
+			bool matches = true;
+			for (int i = 0; i < parameters.Length; i++)
+			{
+				if (TargetMethodArgs[i] == null || parameters[i].ParameterType != TargetMethodArgs[i])
+				{
+					matches = false;
+					break;
+				}
+			}
+
+			if (!matches)
+			{
+				continue;
+			}
+
+			if (result != null)
+			{
+				return null;
+			}
+
+			result = method;
+		}
+
+		return result;
 	}
 
 	public void SetStatus(HookState Status, string error = null)

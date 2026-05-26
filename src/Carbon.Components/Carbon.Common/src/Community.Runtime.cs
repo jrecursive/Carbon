@@ -38,16 +38,18 @@ public partial class Community
 
 	public static bool IsServerInitialized { get; internal set; }
 	public static bool IsConfigReady => Runtime != null && Runtime.Config != null;
-	public static bool AllProcessorsFinalized => Runtime.ScriptProcessor.AllPendingScriptsComplete() &&
+	public static bool AllProcessorsFinalized => Runtime?.ScriptProcessor != null &&
+												 Runtime.ZipScriptProcessor != null &&
+												 Runtime.ScriptProcessor.AllPendingScriptsComplete() &&
 												 Runtime.ZipScriptProcessor.AllPendingScriptsComplete()
 #if !MINIMAL && DEBUG
-												 && Runtime.ZipDevScriptProcessor.AllPendingScriptsComplete()
+												 && (Runtime.ZipDevScriptProcessor == null || Runtime.ZipDevScriptProcessor.AllPendingScriptsComplete())
 #endif
 		;
-	public static int AllProcesses => Runtime.ScriptProcessor.InstanceBuffer.Count
-		+ Runtime.ZipScriptProcessor.InstanceBuffer.Count
+	public static int AllProcesses => (Runtime?.ScriptProcessor?.InstanceBuffer?.Count ?? 0)
+		+ (Runtime?.ZipScriptProcessor?.InstanceBuffer?.Count ?? 0)
 #if !MINIMAL && DEBUG
-		+ Runtime.ZipDevScriptProcessor.InstanceBuffer.Count
+		+ (Runtime?.ZipDevScriptProcessor?.InstanceBuffer?.Count ?? 0)
 #endif
 		;
 
