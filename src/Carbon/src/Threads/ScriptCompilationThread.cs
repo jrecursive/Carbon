@@ -250,6 +250,11 @@ public class ScriptCompilationThread : BaseThreadedJob
 	{
 		readonly IDictionary<string, AssemblyDefinition> cache = new Dictionary<string, AssemblyDefinition>(StringComparer.Ordinal);
 
+		public CarbonAssemblyResolver()
+		{
+			AddSearchDirectoryIfExists(Path.GetDirectoryName(typeof(object).Assembly.Location));
+		}
+
 		public override AssemblyDefinition Resolve(AssemblyNameReference name)
 		{
 			return ResolveAssembly(name, new ReaderParameters { AssemblyResolver = this });
@@ -318,6 +323,14 @@ public class ScriptCompilationThread : BaseThreadedJob
 			cache.Clear();
 
 			base.Dispose(disposing);
+		}
+
+		private void AddSearchDirectoryIfExists(string path)
+		{
+			if (!string.IsNullOrEmpty(path) && Directory.Exists(path))
+			{
+				AddSearchDirectory(path);
+			}
 		}
 	}
 

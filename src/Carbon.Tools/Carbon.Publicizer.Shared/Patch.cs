@@ -84,6 +84,11 @@ public class Patch : IDisposable
 	{
 		private readonly IDictionary<string, AssemblyDefinition> _cache = new Dictionary<string, AssemblyDefinition> (StringComparer.Ordinal);
 
+		public CarbonAssemblyResolver()
+		{
+			AddSearchDirectoryIfExists(Path.GetDirectoryName(typeof(object).Assembly.Location));
+		}
+
 		public override AssemblyDefinition Resolve(AssemblyNameReference name)
 		{
 			return ResolveAssembly(name, new ReaderParameters { AssemblyResolver = this });
@@ -155,6 +160,14 @@ public class Patch : IDisposable
 			_cache.Clear ();
 
 			base.Dispose (disposing);
+		}
+
+		private void AddSearchDirectoryIfExists(string path)
+		{
+			if (!string.IsNullOrEmpty(path) && Directory.Exists(path))
+			{
+				AddSearchDirectory(path);
+			}
 		}
 	}
 

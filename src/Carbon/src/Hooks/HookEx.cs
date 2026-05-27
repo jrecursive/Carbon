@@ -31,6 +31,7 @@ public class HookEx : IDisposable, IHook
 	public MethodType MethodType { get; }
 	public string TargetMethod { get; }
 	public List<MethodBase> TargetMethods { get; }
+	public string[] TargetMethodArgNames { get; }
 	public Type[] TargetMethodArgs { get; }
 	public string Identifier { get; }
 	public string ShortIdentifier => Identifier[^6..];
@@ -68,7 +69,8 @@ public class HookEx : IDisposable, IHook
 			HookFullName = metadata.FullName;
 			HookName = metadata.Name;
 			TargetMethod = metadata.Method;
-			TargetMethodArgs = metadata.MethodArgs == null ? [] : [.. metadata.MethodArgs.Select(AccessToolsEx.TypeByName)];
+			TargetMethodArgNames = metadata.MethodArgs ?? [];
+			TargetMethodArgs = [.. TargetMethodArgNames.Select(AccessToolsEx.TypeByName)];
 			TargetMethods = [];
 			TargetType = string.IsNullOrEmpty(metadata.Target) ? null : AccessToolsEx.TypeByName(metadata.Target);
 			MethodType = metadata.MethodType;
@@ -93,6 +95,11 @@ public class HookEx : IDisposable, IHook
 			_runtime.Prefix = AccessTools.Method(type, "Prefix") ?? null;
 			_runtime.Postfix = AccessTools.Method(type, "Postfix") ?? null;
 			_runtime.Transpiler = AccessTools.Method(type, "Transpiler") ?? null;
+
+			if (TargetType == null)
+			{
+				throw new Exception($"Target type '{metadata.Target}' not found");
+			}
 
 			// Type generics need to handled differently from a standard type.
 			// Harmony/Mono.Cecil will not allow the patching of the generic type
@@ -227,8 +234,18 @@ public class HookEx : IDisposable, IHook
 		{
 			MethodType.Getter => AccessTools.PropertyGetter(TargetType, TargetMethod),
 			MethodType.Setter => AccessTools.PropertySetter(TargetType, TargetMethod),
-			_ => AccessTools.Method(TargetType, TargetMethod, TargetMethodArgs) ?? GetCompilerGeneratedLocalFunctionTarget()
+			_ => GetStandardTargetMethodInfo() ?? GetCompilerGeneratedLocalFunctionTarget()
 		};
+	}
+
+	private MethodInfo GetStandardTargetMethodInfo()
+	{
+		if (TargetMethodArgs.Any(argument => argument == null))
+		{
+			return null;
+		}
+
+		return AccessTools.Method(TargetType, TargetMethod, TargetMethodArgs);
 	}
 
 	private MethodInfo GetCompilerGeneratedLocalFunctionTarget()
@@ -254,23 +271,7 @@ public class HookEx : IDisposable, IHook
 				continue;
 			}
 
-			ParameterInfo[] parameters = method.GetParameters();
-			if (parameters.Length != TargetMethodArgs.Length)
-			{
-				continue;
-			}
-
-			bool matches = true;
-			for (int i = 0; i < parameters.Length; i++)
-			{
-				if (TargetMethodArgs[i] == null || parameters[i].ParameterType != TargetMethodArgs[i])
-				{
-					matches = false;
-					break;
-				}
-			}
-
-			if (!matches)
+			if (!MatchesTargetParameters(method.GetParameters()))
 			{
 				continue;
 			}
@@ -284,6 +285,48 @@ public class HookEx : IDisposable, IHook
 		}
 
 		return result;
+	}
+
+	private bool MatchesTargetParameters(ParameterInfo[] parameters)
+	{
+		if (parameters.Length != TargetMethodArgs.Length)
+		{
+			return false;
+		}
+
+		for (int i = 0; i < parameters.Length; i++)
+		{
+			if (!MatchesTargetParameter(parameters[i].ParameterType, TargetMethodArgs[i], TargetMethodArgNames.ElementAtOrDefault(i)))
+			{
+				return false;
+			}
+		}
+
+		return true;
+	}
+
+	private static bool MatchesTargetParameter(Type actual, Type expected, string expectedName)
+	{
+		actual = UnwrapByRef(actual);
+		expected = UnwrapByRef(expected);
+
+		if (expected != null)
+		{
+			return actual == expected;
+		}
+
+		if (string.IsNullOrEmpty(expectedName))
+		{
+			return false;
+		}
+
+		return string.Equals(actual.FullName, expectedName, StringComparison.Ordinal) ||
+			   string.Equals(actual.Name, expectedName, StringComparison.Ordinal);
+	}
+
+	private static Type UnwrapByRef(Type type)
+	{
+		return type?.IsByRef == true ? type.GetElementType() : type;
 	}
 
 	public void SetStatus(HookState Status, string error = null)
