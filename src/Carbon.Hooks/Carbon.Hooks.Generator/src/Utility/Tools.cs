@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 using System.Security.Cryptography;
 using System.Text.RegularExpressions;
 using HarmonyLib;
@@ -149,6 +150,12 @@ internal static class Tools
 			return retval;
 		}
 
+		retval = TypeByNameEx3(typeName);
+		if (retval != null)
+		{
+			return retval;
+		}
+
 		// Match match = Regex.Match(typeName, @"^((?:[\.\w]+))(`\d)?(?:<([\.,\w]+)>)?");
 		return null;
 	}
@@ -206,6 +213,63 @@ internal static class Tools
 		}
 
 		return null;
+	}
+
+	internal static Type? TypeByNameEx3(string typeName)
+	{
+		var separatorIndex = typeName.LastIndexOfAny(['/', '+']);
+		if (separatorIndex < 0 || separatorIndex == typeName.Length - 1)
+		{
+			return null;
+		}
+
+		var ownerName = typeName[..separatorIndex];
+		var nestedName = typeName[(separatorIndex + 1)..];
+		if (!TryGetCompilerGeneratedMethodName(nestedName, out var methodName))
+		{
+			return null;
+		}
+
+		var ownerType = TypeByNameEx1(ownerName) ?? TypeByNameEx2(ownerName);
+		if (ownerType == null)
+		{
+			return null;
+		}
+
+		foreach (var method in AccessTools.GetDeclaredMethods(ownerType).Where(method => method.Name == methodName))
+		{
+			var stateMachineType =
+				method.GetCustomAttribute<AsyncStateMachineAttribute>()?.StateMachineType ??
+				method.GetCustomAttribute<IteratorStateMachineAttribute>()?.StateMachineType;
+
+			if (stateMachineType == null)
+			{
+				continue;
+			}
+
+			TypeCache.TryAdd(typeName, stateMachineType);
+			return stateMachineType;
+		}
+
+		return null;
+	}
+
+	private static bool TryGetCompilerGeneratedMethodName(string nestedName, out string? methodName)
+	{
+		methodName = null;
+		if (!nestedName.StartsWith("<", StringComparison.Ordinal))
+		{
+			return false;
+		}
+
+		var closeIndex = nestedName.IndexOf('>');
+		if (closeIndex <= 1 || !nestedName[(closeIndex + 1)..].StartsWith("d__", StringComparison.Ordinal))
+		{
+			return false;
+		}
+
+		methodName = nestedName[1..closeIndex];
+		return !string.IsNullOrEmpty(methodName);
 	}
 
 	internal static string TypeNameSanitizerEx(string type)

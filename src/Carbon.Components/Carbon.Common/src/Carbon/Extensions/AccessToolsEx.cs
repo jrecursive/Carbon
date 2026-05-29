@@ -1,4 +1,6 @@
-﻿using System.Reflection.Emit;
+﻿using System.Reflection;
+using System.Reflection.Emit;
+using System.Runtime.CompilerServices;
 using Facepunch;
 using HarmonyLib;
 
@@ -74,7 +76,80 @@ public static class AccessToolsEx
 		if (type != null)
 			return type;
 
+		type = ResolveCompilerGeneratedStateMachineType(name, types);
+		if (type != null)
+			return type;
+
 		return types.FirstOrDefault(t => t.Name == name);
+	}
+
+	private static Type ResolveCompilerGeneratedStateMachineType(string name, IEnumerable<Type> types)
+	{
+		var separatorIndex = name.LastIndexOfAny(['/', '+']);
+		if (separatorIndex < 0 || separatorIndex == name.Length - 1)
+		{
+			return null;
+		}
+
+		var ownerName = name[..separatorIndex];
+		var nestedName = name[(separatorIndex + 1)..];
+		if (!TryGetCompilerGeneratedMethodName(nestedName, out var methodName))
+		{
+			return null;
+		}
+
+		var typeArray = types as Type[] ?? types.ToArray();
+		var ownerType = FindLoadedType(ownerName, typeArray);
+		if (ownerType == null)
+		{
+			return null;
+		}
+
+		const BindingFlags flags = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static;
+		foreach (var method in ownerType.GetMethods(flags).Where(method => method.Name == methodName))
+		{
+			var stateMachineType =
+				method.GetCustomAttribute<AsyncStateMachineAttribute>()?.StateMachineType ??
+				method.GetCustomAttribute<IteratorStateMachineAttribute>()?.StateMachineType;
+
+			if (stateMachineType != null)
+			{
+				return stateMachineType;
+			}
+		}
+
+		return null;
+	}
+
+	private static bool TryGetCompilerGeneratedMethodName(string nestedName, out string methodName)
+	{
+		methodName = null;
+		if (!nestedName.StartsWith("<", StringComparison.Ordinal))
+		{
+			return false;
+		}
+
+		var closeIndex = nestedName.IndexOf('>');
+		if (closeIndex <= 1 || !nestedName[(closeIndex + 1)..].StartsWith("d__", StringComparison.Ordinal))
+		{
+			return false;
+		}
+
+		methodName = nestedName[1..closeIndex];
+		return !string.IsNullOrEmpty(methodName);
+	}
+
+	private static Type FindLoadedType(string name, IReadOnlyCollection<Type> types)
+	{
+		var type = Type.GetType(name, throwOnError: false) ?? AccessTools.TypeByName(name);
+		if (type != null)
+		{
+			return type;
+		}
+
+		var nestedName = name.Replace('/', '+');
+		type = types.FirstOrDefault(t => t.FullName == name || t.FullName == nestedName);
+		return type ?? types.FirstOrDefault(t => t.Name == name);
 	}
 
 	public static IEnumerable<Type> AllTypes()
