@@ -4,6 +4,7 @@ using System.Linq;
 using System.Reflection.Emit;
 using Carbon.Base;
 using Carbon.Components;
+using Carbon.Extensions;
 using Facepunch;
 using HarmonyLib;
 using JetBrains.Annotations;
@@ -486,7 +487,7 @@ public partial class VanishModule : CarbonModule<VanishConfig, EmptyModuleData>
 			if (Singleton == null || !Singleton.IsEnabled() || !Singleton.IsPlayerVanished(__instance)) return true;
 
 			__instance.MovePosition(position, false);
-			__instance.ClientRPC(RpcTarget.Player("ForcePositionTo", __instance), position);
+			__instance.SendClientRpc(__instance, "ForcePositionTo", position);
 			return false;
 		}
 	}

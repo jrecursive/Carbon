@@ -1,6 +1,7 @@
 ﻿#if !MINIMAL
 
 using API.Abstracts;
+using Carbon.Extensions;
 using Facepunch;
 using Network;
 using StringEx = Carbon.Extensions.StringEx;
@@ -337,7 +338,7 @@ public partial class AdminModule
 									ap.Player.inventory.loot.MarkDirty();
 									ap.Player.inventory.loot.SendImmediate();
 
-									ap.Player.ClientRPC(RpcTarget.Player("RPC_OpenLootPanel", ap.Player), storage.panelName);
+									ap.Player.SendClientRpc(ap.Player, "RPC_OpenLootPanel", storage.panelName);
 								});
 							});
 							tab.AddText(1, "To loot a backpack, drag the backpack item over any hotbar slots while looting an entity", 10, "1 1 1 0.4");
@@ -424,7 +425,7 @@ public partial class AdminModule
 									var duration = modal.Get<float>("duration").Clamp(0f, float.MaxValue);
 									player.State.unHostileTimestamp = Network.TimeEx.currentTimestamp + duration;
 									player.DirtyPlayerState();
-									player.ClientRPC(RpcTarget.Player("SetHostileLength", player), duration);
+									player.SendClientRpc(player, "SetHostileLength", duration);
 									fields.Clear();
 									fields = null;
 									SelectEntity(tab, ap3, owner);

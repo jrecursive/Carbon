@@ -1,4 +1,5 @@
 ﻿using System.Runtime.CompilerServices;
+using Carbon.Extensions;
 using Network;
 using Oxide.Game.Rust.Cui;
 using UnityEngine.UI;
@@ -498,7 +499,7 @@ public class LUI : IDisposable
 		write.PacketID(Message.Type.RPCMessage);
 		write.EntityID(CommunityEntity.ServerInstance.net.ID);
 		write.UInt32(StringPool.Get("AddUI"));
-		write.BytesWithSize(cbi.GetMergedBytes());
+		write.WriteBytesWithSizeCompat(cbi.GetMergedBytes());
 		write.Send(send);
 	}
 
@@ -508,7 +509,7 @@ public class LUI : IDisposable
 		write.PacketID(Message.Type.RPCMessage);
 		write.EntityID(CommunityEntity.ServerInstance.net.ID);
 		write.UInt32(StringPool.Get("AddUI"));
-		write.BytesWithSize(bytes);
+		write.WriteBytesWithSizeCompat(bytes);
 		write.Send(send);
 	}
 

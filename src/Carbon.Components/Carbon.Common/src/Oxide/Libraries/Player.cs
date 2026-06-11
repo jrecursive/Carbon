@@ -1,4 +1,5 @@
-﻿using Network;
+﻿using Carbon.Extensions;
+using Network;
 using Connection = Network.Connection;
 using Formatter = Oxide.Core.Libraries.Covalence.Formatter;
 
@@ -164,7 +165,7 @@ public class Player : Library
 				player.SetParent(null, true, true);
 				player.SetServerFall(true);
 				player.MovePosition(destination);
-				player.ClientRPC(RpcTarget.Player("ForcePositionTo", player), destination);
+				player.SendClientRpc(player, "ForcePositionTo", destination);
 			}
 			finally
 			{

@@ -1,5 +1,6 @@
 ﻿#if !MINIMAL
 
+using Carbon.Extensions;
 using ProtoBuf;
 
 namespace Carbon.Modules;
@@ -183,7 +184,7 @@ public partial class AdminModule
 						var duration = modal.Get<float>("duration").Clamp(0f, float.MaxValue);
 						player.State.unHostileTimestamp = Network.TimeEx.currentTimestamp + duration;
 						player.DirtyPlayerState();
-						player.ClientRPC(RpcTarget.Player("SetHostileLength", player), duration);
+						player.SendClientRpc(player, "SetHostileLength", duration);
 						fields.Clear();
 						fields = null;
 						ShowInfo(column, tab, aap, player);

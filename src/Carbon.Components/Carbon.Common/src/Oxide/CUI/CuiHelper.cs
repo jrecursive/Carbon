@@ -1,4 +1,5 @@
-﻿using Facepunch;
+﻿using Carbon.Extensions;
+using Facepunch;
 using Newtonsoft.Json;
 using ProtoBuf;
 using Formatting = Newtonsoft.Json.Formatting;
@@ -119,7 +120,7 @@ public static class CuiHelper
 		// CanUseUI
 		if (HookCaller.CallStaticHook(1307002116, player, json) != null) return false;
 
-		CommunityEntity.ServerInstance.ClientRPC(RpcTarget.Player("AddUI", player), json);
+		CommunityEntity.ServerInstance.SendClientRpc(player, "AddUI", json);
 		return true;
 	}
 
@@ -142,7 +143,7 @@ public static class CuiHelper
 			if (!panelList.Contains(element)) panelList.Add(element);
 		}
 
-		CommunityEntity.ServerInstance.ClientRPC(RpcTarget.Player("AddUI", player), json);
+		CommunityEntity.ServerInstance.SendClientRpc(player, "AddUI", json);
 		return true;
 	}
 
@@ -155,7 +156,7 @@ public static class CuiHelper
 
 			// OnDestroyUI
 			HookCaller.CallStaticHook(503981600, player, name);
-			CommunityEntity.ServerInstance.ClientRPC(RpcTarget.Player("DestroyUI", player), name);
+			CommunityEntity.ServerInstance.SendClientRpc(player, "DestroyUI", name);
 			return true;
 		}
 

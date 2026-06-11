@@ -1,4 +1,5 @@
-﻿using Formatter = Oxide.Core.Libraries.Covalence.Formatter;
+﻿using Carbon.Extensions;
+using Formatter = Oxide.Core.Libraries.Covalence.Formatter;
 
 namespace Oxide.Game.Rust.Libraries.Covalence;
 
@@ -348,7 +349,7 @@ public class RustPlayer : IPlayer
 			BasePlayer.SetParent(null, true, true);
 			BasePlayer.SetServerFall(true);
 			BasePlayer.MovePosition(position);
-			BasePlayer.ClientRPC(RpcTarget.Player("ForcePositionTo", BasePlayer), position);
+			BasePlayer.SendClientRpc(BasePlayer, "ForcePositionTo", position);
 		}
 		finally
 		{

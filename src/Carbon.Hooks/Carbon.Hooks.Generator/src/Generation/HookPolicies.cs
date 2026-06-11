@@ -44,6 +44,94 @@ internal static class HookPolicies
 		       && hook.Signature.Name == "OnProjectileAttack";
 	}
 
+	public static bool MatchesOnPlayerAttackProjectilePatchNoOpPolicy(HookDef.Data hook)
+	{
+		return hook.HookName == "OnPlayerAttack"
+		       && hook.Name == "OnPlayerAttack [Projectile] [Patch]"
+		       && hook.TypeName == "BasePlayer"
+		       && hook.Signature.Name == "OnProjectileAttack";
+	}
+
+	public static bool MatchesCanCastFishingRodPolicy(HookDef.Data hook)
+	{
+		return hook.HookName == "CanCastFishingRod"
+		       && hook.Name == "CanCastFishingRod"
+		       && hook.TypeName == "BaseFishingRod"
+		       && hook.Signature.Name == "Server_RequestCast";
+	}
+
+	public static bool MatchesCanCatchFishPolicy(HookDef.Data hook)
+	{
+		return hook.HookName == "CanCatchFish"
+		       && hook.Name == "CanCatchFish"
+		       && hook.TypeName == "BaseFishingRod"
+		       && hook.Signature.Name == "CatchProcessBudgeted";
+	}
+
+	public static bool MatchesOnFishCatchPolicy(HookDef.Data hook)
+	{
+		return hook.HookName == "OnFishCatch"
+		       && hook.Name == "OnFishCatch"
+		       && hook.TypeName == "BaseFishingRod"
+		       && hook.Signature.Name == "CatchProcessBudgeted";
+	}
+
+	public static bool MatchesOnCorpsePopulatePolicy(HookDef.Data hook)
+	{
+		return hook.HookName == "OnCorpsePopulate"
+		       && hook.Name == "OnCorpsePopulate"
+		       && hook.TypeName == "NPCPlayer"
+		       && hook.Signature.Name == "CreateCorpse";
+	}
+
+	public static bool MatchesOnDispenserGatherPolicy(HookDef.Data hook)
+	{
+		return hook.HookName == "OnDispenserGather"
+		       && hook.Name == "OnDispenserGather"
+		       && hook.TypeName == "ResourceDispenser"
+		       && hook.Signature.Name == "GiveResourceFromItem";
+	}
+
+	public static bool MatchesOnDispenserGatheredPolicy(HookDef.Data hook)
+	{
+		return hook.HookName == "OnDispenserGathered"
+		       && hook.Name == "OnDispenserGathered"
+		       && hook.TypeName == "ResourceDispenser"
+		       && hook.Signature.Name == "GiveResourceFromItem";
+	}
+
+	public static bool MatchesOnDispenserBonusPolicy(HookDef.Data hook)
+	{
+		return hook.HookName == "OnDispenserBonus"
+		       && hook.Name == "OnDispenserBonus"
+		       && hook.TypeName == "ResourceDispenser"
+		       && hook.Signature.Name == "AssignFinishBonus";
+	}
+
+	public static bool MatchesOnDispenserBonusReceivedPolicy(HookDef.Data hook)
+	{
+		return hook.HookName == "OnDispenserBonusReceived"
+		       && hook.Name == "OnDispenserBonusReceived"
+		       && hook.TypeName == "ResourceDispenser"
+		       && hook.Signature.Name == "AssignFinishBonus";
+	}
+
+	public static bool MatchesOnItemCraftPolicy(HookDef.Data hook)
+	{
+		return hook.HookName == "OnItemCraft"
+		       && hook.Name == "OnItemCraft"
+		       && hook.TypeName == "ItemCrafter"
+		       && hook.Signature.Name == "CraftItem";
+	}
+
+	public static bool MatchesFixItemKeyIdObsoletePolicy(HookDef.Data hook)
+	{
+		return hook.HookName == "FixItemKeyId [patch]"
+		       && hook.Name == "FixItemKeyId [patch]"
+		       && hook.TypeName == "ItemCrafter"
+		       && hook.Signature.Name == "CraftItem";
+	}
+
 	public static bool MatchesOnPlayerVoiceReadOnlySpanPolicy(HookDef.Data hook)
 	{
 		return hook.HookName == "OnPlayerVoice"
@@ -140,6 +228,15 @@ internal static class HookPolicies
 	{
 		return TryGenerateOnClanCreatedAsyncSuccessRetargetPolicy(body, hook)
 		       || TryGenerateOnPlayerVoiceReadOnlySpanPolicy(body, hook)
+		       || TryGenerateCanCastFishingRodPolicy(body, hook)
+		       || TryGenerateCanCatchFishPolicy(body, hook)
+		       || TryGenerateOnFishCatchPolicy(body, hook)
+		       || TryGenerateOnCorpsePopulatePolicy(body, hook)
+		       || TryGenerateOnDispenserGatherPolicy(body, hook)
+		       || TryGenerateOnDispenserGatheredPolicy(body, hook)
+		       || TryGenerateOnDispenserBonusPolicy(body, hook)
+		       || TryGenerateOnDispenserBonusReceivedPolicy(body, hook)
+		       || TryGenerateOnItemCraftPolicy(body, hook)
 		       || TryGenerateOnPlayerAttackProjectileLeavePolicy(body, hook)
 		       || TryGenerateFlameTurretCanBeTargetedLeavePolicy(body, hook)
 		       || TryGenerateObsoleteNoOpTranspilerPolicy(body, hook)
@@ -238,6 +335,351 @@ internal static class HookPolicies
 		return true;
 	}
 
+	private static bool TryGenerateCanCastFishingRodPolicy(StringBuilder body, HookDef.Data hook)
+	{
+		if (!MatchesCanCastFishingRodPolicy(hook))
+		{
+			return false;
+		}
+
+		Helper.Parameters.Add(("player", Tools.TypeByNameEx("BasePlayer") ?? typeof(object)));
+		Helper.Parameters.Add(("self", Tools.TypeByNameEx("BaseFishingRod") ?? typeof(object)));
+		Helper.Parameters.Add(("lure", Tools.TypeByNameEx("Item") ?? typeof(object)));
+		Helper.Parameters.Add(("position", Tools.TypeByNameEx("UnityEngine.Vector3") ?? typeof(object)));
+		Helper.ReturnType = typeof(bool);
+
+		AppendTranspilerHelpers(body);
+		body.AppendLine("private static bool ShouldCancelFishingCast(BasePlayer player, BaseFishingRod rod, Item lure, UnityEngine.Vector3 position) {");
+		body.AppendLine($"return HookCaller.CallStaticHook({HookStringPool.GetOrAdd(hook.HookName)}u, player, rod, lure, position) is bool allowed && !allowed;");
+		body.AppendLine("}");
+		body.AppendLine("public static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> Instructions, ILGenerator Generator, MethodBase Method) {");
+		body.AppendLine("List<CodeInstruction> code = new List<CodeInstruction>(Instructions);");
+		body.AppendLine("int evaluateCall = code.FindIndex(instruction => CallsNamed(instruction, \"EvaluateFishingPosition\"));");
+		body.AppendLine("int branchIndex = evaluateCall >= 0 ? evaluateCall + 1 : -1;");
+		body.AppendLine("if (branchIndex < 0 || branchIndex >= code.Count || !IsBranch(code[branchIndex], out Label continueCastLabel)) return code.AsEnumerable();");
+		body.AppendLine("int insertIndex = FindLabelIndex(code, continueCastLabel);");
+		body.AppendLine("if (insertIndex < 0) return code.AsEnumerable();");
+		body.AppendLine("Label continueOriginal = Generator.DefineLabel();");
+		body.AppendLine("List<CodeInstruction> insert = new List<CodeInstruction>();");
+		body.AppendLine("insert.Add(LoadLocal(1));");
+		body.AppendLine("insert.Add(new CodeInstruction(OpCodes.Ldarg_0));");
+		body.AppendLine("insert.Add(LoadLocal(2));");
+		body.AppendLine("insert.Add(LoadLocal(0));");
+		body.AppendLine("insert.Add(new CodeInstruction(OpCodes.Call, AccessTools.Method(MethodBase.GetCurrentMethod().DeclaringType, nameof(ShouldCancelFishingCast))));");
+		body.AppendLine("insert.Add(new CodeInstruction(OpCodes.Brfalse_S, continueOriginal));");
+		body.AppendLine("insert.Add(new CodeInstruction(OpCodes.Ret));");
+		body.AppendLine("MoveLabels(code[insertIndex], insert[0]);");
+		body.AppendLine("code[insertIndex].labels.Add(continueOriginal);");
+		body.AppendLine("code.InsertRange(insertIndex, insert);");
+		body.AppendLine("return code.AsEnumerable();");
+		body.AppendLine("}");
+		CloseGeneratedHookBody(body);
+		return true;
+	}
+
+	private static bool TryGenerateCanCatchFishPolicy(StringBuilder body, HookDef.Data hook)
+	{
+		if (!MatchesCanCatchFishPolicy(hook))
+		{
+			return false;
+		}
+
+		Helper.Parameters.Add(("player", Tools.TypeByNameEx("BasePlayer") ?? typeof(object)));
+		Helper.Parameters.Add(("self", Tools.TypeByNameEx("BaseFishingRod") ?? typeof(object)));
+		Helper.Parameters.Add(("item", Tools.TypeByNameEx("Item") ?? typeof(object)));
+		Helper.ReturnType = typeof(bool);
+
+		AppendTranspilerHelpers(body);
+		body.AppendLine("private static bool ShouldCancelFishCatch(BasePlayer player, BaseFishingRod rod, Item item) {");
+		body.AppendLine($"return HookCaller.CallStaticHook({HookStringPool.GetOrAdd(hook.HookName)}u, player, rod, item) is bool allowed && !allowed;");
+		body.AppendLine("}");
+		body.AppendLine("public static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> Instructions, ILGenerator Generator, MethodBase Method) {");
+		body.AppendLine("List<CodeInstruction> code = new List<CodeInstruction>(Instructions);");
+		body.AppendLine("int ownershipCall = code.FindIndex(instruction => CallsNamed(instruction, typeof(Item), \"SetItemOwnership\"));");
+		body.AppendLine("int popIndex = ownershipCall >= 0 && ownershipCall + 1 < code.Count && code[ownershipCall + 1].opcode == OpCodes.Pop ? ownershipCall + 1 : -1;");
+		body.AppendLine("if (popIndex < 0) return code.AsEnumerable();");
+		body.AppendLine("object leaveTarget = FindLastLeaveTarget(code);");
+		body.AppendLine("if (leaveTarget == null) return code.AsEnumerable();");
+		body.AppendLine("int insertIndex = popIndex + 1;");
+		body.AppendLine("if (insertIndex >= code.Count) return code.AsEnumerable();");
+		body.AppendLine("Label continueLabel = Generator.DefineLabel();");
+		body.AppendLine("List<CodeInstruction> insert = new List<CodeInstruction>();");
+		body.AppendLine("insert.Add(LoadLocal(2));");
+		body.AppendLine("insert.Add(new CodeInstruction(OpCodes.Ldarg_0));");
+		body.AppendLine("insert.Add(LoadLocal(16));");
+		body.AppendLine("insert.Add(new CodeInstruction(OpCodes.Call, AccessTools.Method(MethodBase.GetCurrentMethod().DeclaringType, nameof(ShouldCancelFishCatch))));");
+		body.AppendLine("insert.Add(new CodeInstruction(OpCodes.Brfalse_S, continueLabel));");
+		body.AppendLine("insert.Add(new CodeInstruction(OpCodes.Leave, leaveTarget));");
+		body.AppendLine("code[insertIndex].labels.Add(continueLabel);");
+		body.AppendLine("code.InsertRange(insertIndex, insert);");
+		body.AppendLine("return code.AsEnumerable();");
+		body.AppendLine("}");
+		CloseGeneratedHookBody(body);
+		return true;
+	}
+
+	private static bool TryGenerateOnFishCatchPolicy(StringBuilder body, HookDef.Data hook)
+	{
+		if (!MatchesOnFishCatchPolicy(hook))
+		{
+			return false;
+		}
+
+		Helper.Parameters.Add(("item", Tools.TypeByNameEx("Item") ?? typeof(object)));
+		Helper.Parameters.Add(("self", Tools.TypeByNameEx("BaseFishingRod") ?? typeof(object)));
+		Helper.Parameters.Add(("player", Tools.TypeByNameEx("BasePlayer") ?? typeof(object)));
+		Helper.ReturnType = Tools.TypeByNameEx("Item") ?? typeof(object);
+
+		AppendTranspilerHelpers(body);
+		body.AppendLine("private static Item OnFishCatchCompat(Item item, BaseFishingRod rod, BasePlayer player) {");
+		body.AppendLine($"return HookCaller.CallStaticHook({HookStringPool.GetOrAdd(hook.HookName)}u, item, rod, player) is Item replacement ? replacement : item;");
+		body.AppendLine("}");
+		body.AppendLine("private static bool TryFindAfterCanCatchFishBlock(List<CodeInstruction> code, int startIndex, out int insertIndex) {");
+		body.AppendLine("insertIndex = startIndex;");
+		body.AppendLine("int limit = Math.Min(code.Count, startIndex + 32);");
+		body.AppendLine("for (int i = startIndex; i < limit; i++) {");
+		body.AppendLine("if (!CallsNamed(code[i], \"ShouldCancelFishCatch\")) continue;");
+		body.AppendLine("int candidate = i + 3;");
+		body.AppendLine("if (candidate >= code.Count) return false;");
+		body.AppendLine("insertIndex = candidate;");
+		body.AppendLine("return true;");
+		body.AppendLine("}");
+		body.AppendLine("return false;");
+		body.AppendLine("}");
+		body.AppendLine("public static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> Instructions, ILGenerator Generator, MethodBase Method) {");
+		body.AppendLine("List<CodeInstruction> code = new List<CodeInstruction>(Instructions);");
+		body.AppendLine("int ownershipCall = code.FindIndex(instruction => CallsNamed(instruction, typeof(Item), \"SetItemOwnership\"));");
+		body.AppendLine("int popIndex = ownershipCall >= 0 && ownershipCall + 1 < code.Count && code[ownershipCall + 1].opcode == OpCodes.Pop ? ownershipCall + 1 : -1;");
+		body.AppendLine("if (popIndex < 0) return code.AsEnumerable();");
+		body.AppendLine("int insertIndex = popIndex + 1;");
+		body.AppendLine("bool afterCanCatch = TryFindAfterCanCatchFishBlock(code, insertIndex, out insertIndex);");
+		body.AppendLine("if (insertIndex >= code.Count) return code.AsEnumerable();");
+		body.AppendLine("List<CodeInstruction> insert = new List<CodeInstruction>();");
+		body.AppendLine("insert.Add(LoadLocal(16));");
+		body.AppendLine("insert.Add(new CodeInstruction(OpCodes.Ldarg_0));");
+		body.AppendLine("insert.Add(LoadLocal(2));");
+		body.AppendLine("insert.Add(new CodeInstruction(OpCodes.Call, AccessTools.Method(MethodBase.GetCurrentMethod().DeclaringType, nameof(OnFishCatchCompat))));");
+		body.AppendLine("insert.Add(StoreLocal(16));");
+		body.AppendLine("if (afterCanCatch) MoveLabels(code[insertIndex], insert[0]);");
+		body.AppendLine("code.InsertRange(insertIndex, insert);");
+		body.AppendLine("return code.AsEnumerable();");
+		body.AppendLine("}");
+		CloseGeneratedHookBody(body);
+		return true;
+	}
+
+	private static bool TryGenerateOnCorpsePopulatePolicy(StringBuilder body, HookDef.Data hook)
+	{
+		if (!MatchesOnCorpsePopulatePolicy(hook))
+		{
+			return false;
+		}
+
+		Helper.Parameters.Add(("self", Tools.TypeByNameEx("NPCPlayer") ?? typeof(object)));
+		Helper.Parameters.Add(("corpse", Tools.TypeByNameEx("LootableCorpse") ?? typeof(object)));
+		Helper.ReturnType = typeof(void);
+
+		body.AppendLine("public static void Postfix(NPCPlayer __instance, BaseCorpse __result) {");
+		body.AppendLine("if (__instance == null || __result is not LootableCorpse corpse) return;");
+		body.AppendLine($"HookCaller.CallStaticHook({HookStringPool.GetOrAdd(hook.HookName)}u, __instance, corpse);");
+		body.AppendLine("}");
+		CloseGeneratedHookBody(body);
+		return true;
+	}
+
+	private static bool TryGenerateOnDispenserGatherPolicy(StringBuilder body, HookDef.Data hook)
+	{
+		if (!MatchesOnDispenserGatherPolicy(hook))
+		{
+			return false;
+		}
+
+		Helper.Parameters.Add(("self", Tools.TypeByNameEx("ResourceDispenser") ?? typeof(object)));
+		Helper.Parameters.Add(("entity", Tools.TypeByNameEx("BasePlayer") ?? typeof(object)));
+		Helper.Parameters.Add(("item", Tools.TypeByNameEx("Item") ?? typeof(object)));
+		Helper.ReturnType = typeof(void);
+
+		AppendTranspilerHelpers(body);
+		body.AppendLine("private static bool ShouldSkipDispenserGather(ResourceDispenser dispenser, BasePlayer player, Item item) {");
+		body.AppendLine($"return HookCaller.CallStaticHook({HookStringPool.GetOrAdd(hook.HookName)}u, dispenser, player, item) != null;");
+		body.AppendLine("}");
+		body.AppendLine("public static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> Instructions, ILGenerator Generator, MethodBase Method) {");
+		body.AppendLine("List<CodeInstruction> code = new List<CodeInstruction>(Instructions);");
+		body.AppendLine("int createCall = code.FindIndex(instruction => CallsNamed(instruction, typeof(ItemManager), \"CreateByItemID\"));");
+		body.AppendLine("int branchIndex = FindNextBranch(code, createCall, OpCodes.Brtrue, OpCodes.Brtrue_S);");
+		body.AppendLine("if (branchIndex < 0 || !IsBranch(code[branchIndex], out Label itemCreatedLabel)) return code.AsEnumerable();");
+		body.AppendLine("int insertIndex = FindLabelIndex(code, itemCreatedLabel);");
+		body.AppendLine("if (insertIndex < 0) return code.AsEnumerable();");
+		body.AppendLine("Label continueOriginal = Generator.DefineLabel();");
+		body.AppendLine("List<CodeInstruction> insert = new List<CodeInstruction>();");
+		body.AppendLine("insert.Add(new CodeInstruction(OpCodes.Ldarg_0));");
+		body.AppendLine("insert.Add(new CodeInstruction(OpCodes.Ldarg_1));");
+		body.AppendLine("insert.Add(LoadLocal(7));");
+		body.AppendLine("insert.Add(new CodeInstruction(OpCodes.Call, AccessTools.Method(MethodBase.GetCurrentMethod().DeclaringType, nameof(ShouldSkipDispenserGather))));");
+		body.AppendLine("insert.Add(new CodeInstruction(OpCodes.Brfalse_S, continueOriginal));");
+		body.AppendLine("insert.Add(new CodeInstruction(OpCodes.Ret));");
+		body.AppendLine("MoveLabels(code[insertIndex], insert[0]);");
+		body.AppendLine("code[insertIndex].labels.Add(continueOriginal);");
+		body.AppendLine("code.InsertRange(insertIndex, insert);");
+		body.AppendLine("return code.AsEnumerable();");
+		body.AppendLine("}");
+		CloseGeneratedHookBody(body);
+		return true;
+	}
+
+	private static bool TryGenerateOnDispenserGatheredPolicy(StringBuilder body, HookDef.Data hook)
+	{
+		if (!MatchesOnDispenserGatheredPolicy(hook))
+		{
+			return false;
+		}
+
+		Helper.Parameters.Add(("self", Tools.TypeByNameEx("ResourceDispenser") ?? typeof(object)));
+		Helper.Parameters.Add(("entity", Tools.TypeByNameEx("BasePlayer") ?? typeof(object)));
+		Helper.Parameters.Add(("item", Tools.TypeByNameEx("Item") ?? typeof(object)));
+		Helper.ReturnType = typeof(void);
+
+		AppendTranspilerHelpers(body);
+		body.AppendLine("private static void OnDispenserGatheredCompat(ResourceDispenser dispenser, BasePlayer player, Item item) {");
+		body.AppendLine($"HookCaller.CallStaticHook({HookStringPool.GetOrAdd(hook.HookName)}u, dispenser, player, item);");
+		body.AppendLine("}");
+		body.AppendLine("public static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> Instructions, ILGenerator Generator, MethodBase Method) {");
+		body.AppendLine("List<CodeInstruction> code = new List<CodeInstruction>(Instructions);");
+		body.AppendLine("int analyticsCall = code.FindIndex(instruction => CallsNamed(instruction, \"OnGatherItem\"));");
+		body.AppendLine("if (analyticsCall < 0) return code.AsEnumerable();");
+		body.AppendLine("int insertIndex = analyticsCall + 1;");
+		body.AppendLine("List<CodeInstruction> insert = new List<CodeInstruction>();");
+		body.AppendLine("insert.Add(new CodeInstruction(OpCodes.Ldarg_0));");
+		body.AppendLine("insert.Add(new CodeInstruction(OpCodes.Ldarg_1));");
+		body.AppendLine("insert.Add(LoadLocal(7));");
+		body.AppendLine("insert.Add(new CodeInstruction(OpCodes.Call, AccessTools.Method(MethodBase.GetCurrentMethod().DeclaringType, nameof(OnDispenserGatheredCompat))));");
+		body.AppendLine("code.InsertRange(insertIndex, insert);");
+		body.AppendLine("return code.AsEnumerable();");
+		body.AppendLine("}");
+		CloseGeneratedHookBody(body);
+		return true;
+	}
+
+	private static bool TryGenerateOnDispenserBonusPolicy(StringBuilder body, HookDef.Data hook)
+	{
+		if (!MatchesOnDispenserBonusPolicy(hook))
+		{
+			return false;
+		}
+
+		Helper.Parameters.Add(("self", Tools.TypeByNameEx("ResourceDispenser") ?? typeof(object)));
+		Helper.Parameters.Add(("entity", Tools.TypeByNameEx("BasePlayer") ?? typeof(object)));
+		Helper.Parameters.Add(("item", Tools.TypeByNameEx("Item") ?? typeof(object)));
+		Helper.ReturnType = Tools.TypeByNameEx("Item") ?? typeof(object);
+
+		AppendTranspilerHelpers(body);
+		body.AppendLine("private static Item OnDispenserBonusCompat(ResourceDispenser dispenser, BasePlayer player, Item item) {");
+		body.AppendLine($"return HookCaller.CallStaticHook({HookStringPool.GetOrAdd(hook.HookName)}u, dispenser, player, item) is Item replacement ? replacement : item;");
+		body.AppendLine("}");
+		body.AppendLine("public static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> Instructions, ILGenerator Generator, MethodBase Method) {");
+		body.AppendLine("List<CodeInstruction> code = new List<CodeInstruction>(Instructions);");
+		body.AppendLine("int createCall = code.FindIndex(instruction => CallsNamed(instruction, typeof(ItemManager), \"Create\"));");
+		body.AppendLine("int branchIndex = FindNextBranch(code, createCall, OpCodes.Brfalse, OpCodes.Brfalse_S);");
+		body.AppendLine("if (branchIndex < 0 || !IsBranch(code[branchIndex], out Label noItemLabel)) return code.AsEnumerable();");
+		body.AppendLine("int insertIndex = branchIndex + 1;");
+		body.AppendLine("if (insertIndex >= code.Count) return code.AsEnumerable();");
+		body.AppendLine("List<CodeInstruction> insert = new List<CodeInstruction>();");
+		body.AppendLine("insert.Add(new CodeInstruction(OpCodes.Ldarg_0));");
+		body.AppendLine("insert.Add(new CodeInstruction(OpCodes.Ldarg_1));");
+		body.AppendLine("insert.Add(LoadLocal(4));");
+		body.AppendLine("insert.Add(new CodeInstruction(OpCodes.Call, AccessTools.Method(MethodBase.GetCurrentMethod().DeclaringType, nameof(OnDispenserBonusCompat))));");
+		body.AppendLine("insert.Add(StoreLocal(4));");
+		body.AppendLine("insert.Add(LoadLocal(4));");
+		body.AppendLine("insert.Add(new CodeInstruction(OpCodes.Brfalse_S, noItemLabel));");
+		body.AppendLine("MoveLabels(code[insertIndex], insert[0]);");
+		body.AppendLine("code.InsertRange(insertIndex, insert);");
+		body.AppendLine("return code.AsEnumerable();");
+		body.AppendLine("}");
+		CloseGeneratedHookBody(body);
+		return true;
+	}
+
+	private static bool TryGenerateOnDispenserBonusReceivedPolicy(StringBuilder body, HookDef.Data hook)
+	{
+		if (!MatchesOnDispenserBonusReceivedPolicy(hook))
+		{
+			return false;
+		}
+
+		Helper.Parameters.Add(("self", Tools.TypeByNameEx("ResourceDispenser") ?? typeof(object)));
+		Helper.Parameters.Add(("entity", Tools.TypeByNameEx("BasePlayer") ?? typeof(object)));
+		Helper.Parameters.Add(("item", Tools.TypeByNameEx("Item") ?? typeof(object)));
+		Helper.ReturnType = typeof(void);
+
+		AppendTranspilerHelpers(body);
+		body.AppendLine("private static void OnDispenserBonusReceivedCompat(ResourceDispenser dispenser, BasePlayer player, Item item) {");
+		body.AppendLine($"HookCaller.CallStaticHook({HookStringPool.GetOrAdd(hook.HookName)}u, dispenser, player, item);");
+		body.AppendLine("}");
+		body.AppendLine("public static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> Instructions, ILGenerator Generator, MethodBase Method) {");
+		body.AppendLine("List<CodeInstruction> code = new List<CodeInstruction>(Instructions);");
+		body.AppendLine("int analyticsCall = code.FindIndex(instruction => CallsNamed(instruction, \"OnGatherItem\"));");
+		body.AppendLine("if (analyticsCall < 0) return code.AsEnumerable();");
+		body.AppendLine("int insertIndex = analyticsCall + 1;");
+		body.AppendLine("List<CodeInstruction> insert = new List<CodeInstruction>();");
+		body.AppendLine("insert.Add(new CodeInstruction(OpCodes.Ldarg_0));");
+		body.AppendLine("insert.Add(new CodeInstruction(OpCodes.Ldarg_1));");
+		body.AppendLine("insert.Add(LoadLocal(4));");
+		body.AppendLine("insert.Add(new CodeInstruction(OpCodes.Call, AccessTools.Method(MethodBase.GetCurrentMethod().DeclaringType, nameof(OnDispenserBonusReceivedCompat))));");
+		body.AppendLine("code.InsertRange(insertIndex, insert);");
+		body.AppendLine("return code.AsEnumerable();");
+		body.AppendLine("}");
+		CloseGeneratedHookBody(body);
+		return true;
+	}
+
+	private static bool TryGenerateOnItemCraftPolicy(StringBuilder body, HookDef.Data hook)
+	{
+		if (!MatchesOnItemCraftPolicy(hook))
+		{
+			return false;
+		}
+
+		Helper.Parameters.Add(("task", Tools.TypeByNameEx("ItemCraftTask") ?? typeof(object)));
+		Helper.Parameters.Add(("owner", Tools.TypeByNameEx("BasePlayer") ?? typeof(object)));
+		Helper.Parameters.Add(("fromTempBlueprint", Tools.TypeByNameEx("Item") ?? typeof(object)));
+		Helper.ReturnType = typeof(bool);
+
+		AppendTranspilerHelpers(body);
+		body.AppendLine("private static int OnItemCraftCompat(ItemCraftTask task, BasePlayer owner, Item fromTempBlueprint) {");
+		body.AppendLine($"object result = HookCaller.CallStaticHook({HookStringPool.GetOrAdd(hook.HookName)}u, task, owner, fromTempBlueprint);");
+		body.AppendLine("if (result is not bool value) return -1;");
+		body.AppendLine("if (fromTempBlueprint != null && task != null && task.instanceData != null) fromTempBlueprint.instanceData = task.instanceData;");
+		body.AppendLine("return value ? 1 : 0;");
+		body.AppendLine("}");
+		body.AppendLine("public static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> Instructions, ILGenerator Generator, MethodBase Method) {");
+		body.AppendLine("List<CodeInstruction> code = new List<CodeInstruction>(Instructions);");
+		body.AppendLine("int addLastCall = code.FindIndex(instruction => CallsNamed(instruction, \"AddLast\"));");
+		body.AppendLine("int insertIndex = addLastCall >= 3 ? addLastCall - 3 : -1;");
+		body.AppendLine("if (insertIndex < 0 || insertIndex >= code.Count) return code.AsEnumerable();");
+		body.AppendLine("LocalBuilder resultLocal = Generator.DeclareLocal(typeof(int));");
+		body.AppendLine("Label continueOriginal = Generator.DefineLabel();");
+		body.AppendLine("List<CodeInstruction> insert = new List<CodeInstruction>();");
+		body.AppendLine("insert.Add(LoadLocal(0));");
+		body.AppendLine("insert.Add(new CodeInstruction(OpCodes.Ldarg_2));");
+		body.AppendLine("insert.Add(new CodeInstruction(OpCodes.Ldarg_S, 6));");
+		body.AppendLine("insert.Add(new CodeInstruction(OpCodes.Call, AccessTools.Method(MethodBase.GetCurrentMethod().DeclaringType, nameof(OnItemCraftCompat))));");
+		body.AppendLine("insert.Add(new CodeInstruction(OpCodes.Stloc, resultLocal));");
+		body.AppendLine("insert.Add(new CodeInstruction(OpCodes.Ldloc, resultLocal));");
+		body.AppendLine("insert.Add(new CodeInstruction(OpCodes.Ldc_I4_M1));");
+		body.AppendLine("insert.Add(new CodeInstruction(OpCodes.Beq_S, continueOriginal));");
+		body.AppendLine("insert.Add(new CodeInstruction(OpCodes.Ldloc, resultLocal));");
+		body.AppendLine("insert.Add(new CodeInstruction(OpCodes.Ldc_I4_1));");
+		body.AppendLine("insert.Add(new CodeInstruction(OpCodes.Ceq));");
+		body.AppendLine("insert.Add(new CodeInstruction(OpCodes.Ret));");
+		body.AppendLine("MoveLabels(code[insertIndex], insert[0]);");
+		body.AppendLine("code[insertIndex].labels.Add(continueOriginal);");
+		body.AppendLine("code.InsertRange(insertIndex, insert);");
+		body.AppendLine("return code.AsEnumerable();");
+		body.AppendLine("}");
+		CloseGeneratedHookBody(body);
+		return true;
+	}
+
 	private static bool TryGenerateOnPlayerAttackProjectileLeavePolicy(StringBuilder body, HookDef.Data hook)
 	{
 		if (!MatchesOnPlayerAttackProjectileLeavePolicy(hook))
@@ -321,7 +763,15 @@ internal static class HookPolicies
 	private static bool TryGenerateObsoleteNoOpTranspilerPolicy(StringBuilder body, HookDef.Data hook)
 	{
 		string reason;
-		if (MatchesOnBonusItemDroppedObsoleteBranchPatchPolicy(hook))
+		if (MatchesOnPlayerAttackProjectilePatchNoOpPolicy(hook))
+		{
+			reason = "Current staging OnPlayerAttack projectile policy owns cancellation; the stale OPJ dependency patch is obsolete.";
+		}
+		else if (MatchesFixItemKeyIdObsoletePolicy(hook))
+		{
+			reason = "Current staging ItemCrafter.CraftItem carries attachmentID natively; the stale key-id patch is obsolete.";
+		}
+		else if (MatchesOnBonusItemDroppedObsoleteBranchPatchPolicy(hook))
 		{
 			reason = "Current staging LootContainer.DropBonusItems no longer has the old post-hook branch target used by this OPJ patch.";
 		}
@@ -343,6 +793,69 @@ internal static class HookPolicies
 		body.AppendLine("}");
 		body.AppendLine();
 		return true;
+	}
+
+	private static void AppendTranspilerHelpers(StringBuilder body)
+	{
+		body.AppendLine("private static CodeInstruction LoadLocal(int index) {");
+		body.AppendLine("switch (index) {");
+		body.AppendLine("case 0: return new CodeInstruction(OpCodes.Ldloc_0);");
+		body.AppendLine("case 1: return new CodeInstruction(OpCodes.Ldloc_1);");
+		body.AppendLine("case 2: return new CodeInstruction(OpCodes.Ldloc_2);");
+		body.AppendLine("case 3: return new CodeInstruction(OpCodes.Ldloc_3);");
+		body.AppendLine("default: return new CodeInstruction(OpCodes.Ldloc, index);");
+		body.AppendLine("}");
+		body.AppendLine("}");
+		body.AppendLine("private static CodeInstruction StoreLocal(int index) {");
+		body.AppendLine("switch (index) {");
+		body.AppendLine("case 0: return new CodeInstruction(OpCodes.Stloc_0);");
+		body.AppendLine("case 1: return new CodeInstruction(OpCodes.Stloc_1);");
+		body.AppendLine("case 2: return new CodeInstruction(OpCodes.Stloc_2);");
+		body.AppendLine("case 3: return new CodeInstruction(OpCodes.Stloc_3);");
+		body.AppendLine("default: return new CodeInstruction(OpCodes.Stloc, index);");
+		body.AppendLine("}");
+		body.AppendLine("}");
+		body.AppendLine("private static bool CallsNamed(CodeInstruction instruction, string methodName) {");
+		body.AppendLine("return instruction.operand is MethodBase method && method.Name == methodName;");
+		body.AppendLine("}");
+		body.AppendLine("private static bool CallsNamed(CodeInstruction instruction, Type declaringType, string methodName) {");
+		body.AppendLine("return instruction.operand is MethodBase method && method.Name == methodName && method.DeclaringType == declaringType;");
+		body.AppendLine("}");
+		body.AppendLine("private static bool IsBranch(CodeInstruction instruction, out Label label) {");
+		body.AppendLine("if (instruction.operand is Label direct) { label = direct; return instruction.opcode.FlowControl == FlowControl.Branch || instruction.opcode.FlowControl == FlowControl.Cond_Branch; }");
+		body.AppendLine("label = default;");
+		body.AppendLine("return false;");
+		body.AppendLine("}");
+		body.AppendLine("private static int FindLabelIndex(List<CodeInstruction> instructions, Label label) {");
+		body.AppendLine("return instructions.FindIndex(instruction => instruction.labels.Contains(label));");
+		body.AppendLine("}");
+		body.AppendLine("private static int FindNextBranch(List<CodeInstruction> instructions, int startIndex, params OpCode[] opcodes) {");
+		body.AppendLine("if (startIndex < 0) return -1;");
+		body.AppendLine("for (int i = startIndex + 1; i < instructions.Count; i++) {");
+		body.AppendLine("if (opcodes.Contains(instructions[i].opcode)) return i;");
+		body.AppendLine("}");
+		body.AppendLine("return -1;");
+		body.AppendLine("}");
+		body.AppendLine("private static object FindLastLeaveTarget(List<CodeInstruction> instructions) {");
+		body.AppendLine("for (int i = instructions.Count - 1; i >= 0; i--) {");
+		body.AppendLine("if (instructions[i].opcode == OpCodes.Leave || instructions[i].opcode == OpCodes.Leave_S) return instructions[i].operand;");
+		body.AppendLine("}");
+		body.AppendLine("return null;");
+		body.AppendLine("}");
+		body.AppendLine("private static void MoveLabels(CodeInstruction from, CodeInstruction to) {");
+		body.AppendLine("to.labels.AddRange(from.labels);");
+		body.AppendLine("from.labels.Clear();");
+		body.AppendLine("to.blocks.AddRange(from.blocks);");
+		body.AppendLine("from.blocks.Clear();");
+		body.AppendLine("}");
+	}
+
+	private static void CloseGeneratedHookBody(StringBuilder body)
+	{
+		body.AppendLine("}");
+		body.AppendLine("}");
+		body.AppendLine("}");
+		body.AppendLine();
 	}
 
 	private static bool TryGenerateFlameTurretCanBeTargetedLeavePolicy(StringBuilder body, HookDef.Data hook)

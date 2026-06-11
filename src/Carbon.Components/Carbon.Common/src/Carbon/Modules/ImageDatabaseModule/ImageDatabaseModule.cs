@@ -1,6 +1,7 @@
 ﻿using System.Drawing.Imaging;
 using System.Management.Instrumentation;
 using System.Net;
+using Carbon.Extensions;
 using Facepunch;
 using ProtoBuf;
 using QRCoder;
@@ -475,7 +476,7 @@ public partial class ImageDatabaseModule : CarbonModule<ImageDatabaseConfig, Emp
 		if (array == null)
 			return;
 
-		CommunityEntity.ServerInstance.ClientRPC(RpcTarget.Player("CL_ReceiveFilePng", player), image, (uint)array.Length, array, 0u, (byte)FileStorage.Type.png);
+		CommunityEntity.ServerInstance.SendClientPng(player, image, array);
 	}
 	public bool HasImage(string keyOrUrl)
 	{

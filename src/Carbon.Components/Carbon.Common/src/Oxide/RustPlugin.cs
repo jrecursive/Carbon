@@ -1,4 +1,5 @@
-﻿using Cysharp.Text;
+﻿using Carbon.Extensions;
+using Cysharp.Text;
 using Logger = Carbon.Logger;
 using Player = Oxide.Game.Rust.Libraries.Player;
 
@@ -421,7 +422,7 @@ public class RustPlugin : Plugin
 
 		if (!player.IsSpectating() || (double)Vector3.Distance(player.transform.position, destination) > 25.0)
 		{
-			player.ClientRPC(RpcTarget.Player("ForcePositionTo", player), destination);
+			player.SendClientRpc(player, "ForcePositionTo", destination);
 			return;
 		}
 

@@ -11,6 +11,7 @@ BUILD_MANAGED="${ROOT}/release/.tmp/${CARBON_BUILD_CONFIGURATION}/carbon/managed
 HOOKGEN_OUTPUT_ROOT="${CARBON_HOOKGEN_OUTPUT_ROOT:-${ROOT}/release/.tmp/${CARBON_BUILD_CONFIGURATION}/staging-hookgen}"
 GENERATED_HOOK_SOURCE_DIR="${HOOKGEN_OUTPUT_ROOT}/generated"
 CARBON_RELEASES_ENDPOINT="${CARBON_RELEASES_ENDPOINT:-https://api.carbonmod.gg/releases}"
+CURRENT_ERRORS_LOG="${CARBON_CURRENT_ERRORS_LOG:-${ROOT}/../current_errors.log}"
 CARBON_RELEASE_TAG="rustbeta_staging_build"
 
 require_dir() {
@@ -58,6 +59,7 @@ echo "Repo: ${ROOT}"
 echo "Staging Rust managed: ${STAGING_MANAGED}"
 echo "Staging Carbon managed: ${STAGING_CARBON_MANAGED}"
 echo "Carbon releases endpoint: ${CARBON_RELEASES_ENDPOINT}"
+echo "Current errors log: ${CURRENT_ERRORS_LOG}"
 
 require_tool curl
 require_tool git
@@ -116,12 +118,20 @@ fi
 echo "Verified built Carbon.Preloader.dll version: ${BUILT_PRELOADER_VERSION}"
 
 echo "Verifying generated hooks against installed staging Rust DLLs..."
-"${ROOT}/verify-staging-hooks.sh" \
+VERIFY_ARGS=(
+  "${ROOT}/verify-staging-hooks.sh"
   --server-root "${STAGING_ROOT}" \
   --carbon-managed "${BUILD_MANAGED}" \
   --hooks-dir "${BUILD_MANAGED}/hooks" \
   --all-generated \
   --strict-no-suppression
+)
+
+if [[ -f "${CURRENT_ERRORS_LOG}" ]]; then
+  VERIFY_ARGS+=(--install-hooks-from-log "${CURRENT_ERRORS_LOG}")
+fi
+
+"${VERIFY_ARGS[@]}"
 
 echo "Installing ${CARBON_BUILD_CONFIGURATION} managed artifacts..."
 mkdir -p "${STAGING_CARBON_MANAGED}"
