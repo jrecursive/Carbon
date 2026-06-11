@@ -68,10 +68,10 @@
 		</Project>
 	</Folder>
 	<Folder Name="/Tools/">
-		<Project Path="Carbon.Tools/Carbon.CompilerPolyfills.Generator/Carbon.CompilerPolyfills.Generator.csproj"/>
 		<Project Path="Carbon.Profiler/Carbon.Profiler.csproj">
 			<Platform Project="x64"/>
 		</Project>
+		<Project Path="Carbon.Tools/Carbon.CompilerPolyfills.Generator/Carbon.CompilerPolyfills.Generator.csproj"/>
 		<Project Path="Carbon.Tools/Carbon.Generator.Shared/Carbon.Generator.Shared.shproj"/>
 		<Project Path="Carbon.Tools/Carbon.SourceGenerators/Carbon.SourceGenerators.csproj">
 			<BuildType Solution="DebugUnix|*" Project="Debug"/>
@@ -81,6 +81,13 @@
 		</Project>
 		<Project Path="Carbon.Tools/Carbon.Publicizer.Shared/Carbon.Publicizer.Shared.shproj"/>
 		<Project Path="Carbon.Tools/Carbon.Publicizer/Carbon.Publicizer.csproj">
+			<BuildType Solution="DebugUnix|*" Project="Debug"/>
+			<BuildType Solution="MinimalUnix|*" Project="Release"/>
+			<BuildType Solution="Minimal|*" Project="Release"/>
+			<BuildType Solution="ReleaseUnix|*" Project="Release"/>
+		</Project>
+		<Project Path="Carbon.Tools/Carbon.Runner/Carbon.Runner.csproj"/>
+		<Project Path="Carbon.Tools/Carbon.StagingHookVerifier/Carbon.StagingHookVerifier.csproj">
 			<BuildType Solution="DebugUnix|*" Project="Debug"/>
 			<BuildType Solution="MinimalUnix|*" Project="Release"/>
 			<BuildType Solution="Minimal|*" Project="Release"/>

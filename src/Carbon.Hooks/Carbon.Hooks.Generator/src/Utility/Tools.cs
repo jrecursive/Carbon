@@ -137,6 +137,13 @@ internal static class Tools
 			return retval;
 		}
 
+		retval = ResolveKnownTypeName(typeName);
+		if (retval != null)
+		{
+			TypeCache.TryAdd(typeName, retval);
+			return retval;
+		}
+
 		retval = TypeByNameEx1(typeName);
 		if (retval != null)
 		{
@@ -151,6 +158,17 @@ internal static class Tools
 
 		// Match match = Regex.Match(typeName, @"^((?:[\.\w]+))(`\d)?(?:<([\.,\w]+)>)?");
 		return null;
+	}
+
+	private static Type? ResolveKnownTypeName(string typeName)
+	{
+		return typeName switch
+		{
+			"System.ReadOnlySpan`1[System.Byte]" => typeof(ReadOnlySpan<byte>),
+			"System.ReadOnlySpan<System.Byte>" => typeof(ReadOnlySpan<byte>),
+			"System.ReadOnlySpan<byte>" => typeof(ReadOnlySpan<byte>),
+			_ => null
+		};
 	}
 
 	internal static Type? TypeByNameEx1(string typeName)

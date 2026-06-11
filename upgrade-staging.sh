@@ -8,6 +8,8 @@ STAGING_MANAGED="${CARBON_STAGING_MANAGED_PATH:-${STAGING_ROOT}/RustDedicated_Da
 STAGING_CARBON_MANAGED="${CARBON_STAGING_CARBON_MANAGED_PATH:-${STAGING_ROOT}/carbon/managed}"
 CARBON_BUILD_CONFIGURATION="${CARBON_BUILD_CONFIGURATION:-ReleaseUnix}"
 BUILD_MANAGED="${ROOT}/release/.tmp/${CARBON_BUILD_CONFIGURATION}/carbon/managed"
+HOOKGEN_OUTPUT_ROOT="${CARBON_HOOKGEN_OUTPUT_ROOT:-${ROOT}/release/.tmp/${CARBON_BUILD_CONFIGURATION}/staging-hookgen}"
+GENERATED_HOOK_SOURCE_DIR="${HOOKGEN_OUTPUT_ROOT}/generated"
 CARBON_RELEASES_ENDPOINT="${CARBON_RELEASES_ENDPOINT:-https://api.carbonmod.gg/releases}"
 CARBON_RELEASE_TAG="rustbeta_staging_build"
 
@@ -83,8 +85,18 @@ git pull --ff-only
 echo "Syncing and publicizing installed staging Rust DLLs..."
 CARBON_STAGING_MANAGED_PATH="${STAGING_MANAGED}" tools/build/linux/update.sh staging
 
-echo "Building ${CARBON_BUILD_CONFIGURATION} Carbon artifacts and official generated hooks as ${CARBON_RELEASE_TAG} ${OFFICIAL_STAGING_VERSION}..."
-VERSION="${OFFICIAL_STAGING_VERSION}" tools/build/linux/build.sh "${CARBON_BUILD_CONFIGURATION}" "RUST_STAGING" "${CARBON_RELEASE_TAG}" -noarchive
+echo "Generating local Oxide hook sources against installed staging Rust DLLs..."
+"${ROOT}/build-staging-hooks.sh" \
+  --server-root "${STAGING_ROOT}" \
+  --managed "${ROOT}/rust/linux/RustDedicated_Data/Managed" \
+  --output-root "${HOOKGEN_OUTPUT_ROOT}"
+
+require_dir "${GENERATED_HOOK_SOURCE_DIR}" "generated hook source directory"
+
+echo "Building ${CARBON_BUILD_CONFIGURATION} Carbon artifacts with locally generated hooks as ${CARBON_RELEASE_TAG} ${OFFICIAL_STAGING_VERSION}..."
+CARBON_GENERATED_HOOK_SOURCE_DIR="${GENERATED_HOOK_SOURCE_DIR}" \
+  VERSION="${OFFICIAL_STAGING_VERSION}" \
+  tools/build/linux/build.sh "${CARBON_BUILD_CONFIGURATION}" "RUST_STAGING;HOOKGEN" "${CARBON_RELEASE_TAG}" -noarchive
 
 require_dir "${BUILD_MANAGED}" "${CARBON_BUILD_CONFIGURATION} build managed directory"
 require_file "${BUILD_MANAGED}/Carbon.dll" "built Carbon.dll"
@@ -102,6 +114,14 @@ if [[ "${BUILT_STAGING_VERSION}" != "${OFFICIAL_STAGING_VERSION}" ]]; then
 fi
 
 echo "Verified built Carbon.Preloader.dll version: ${BUILT_PRELOADER_VERSION}"
+
+echo "Verifying generated hooks against installed staging Rust DLLs..."
+"${ROOT}/verify-staging-hooks.sh" \
+  --server-root "${STAGING_ROOT}" \
+  --carbon-managed "${BUILD_MANAGED}" \
+  --hooks-dir "${BUILD_MANAGED}/hooks" \
+  --all-generated \
+  --strict-no-suppression
 
 echo "Installing ${CARBON_BUILD_CONFIGURATION} managed artifacts..."
 mkdir -p "${STAGING_CARBON_MANAGED}"
