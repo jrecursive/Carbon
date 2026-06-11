@@ -24,6 +24,7 @@ internal sealed partial class Generator(GeneratorOptions options)
 	{
 		ConcurrentBag<HookGenerationResult> generatedHooks = [];
 		ConcurrentBag<HookGenerationResult> failedHooks = [];
+		ConcurrentBag<HookGenerationResult> skippedHooks = [];
 		var order = 0;
 		var parallelOptions = new ParallelOptions
 		{
@@ -55,6 +56,10 @@ internal sealed partial class Generator(GeneratorOptions options)
 							{
 								generatedHooks.Add(result);
 							}
+							else if (result.IsSkipped)
+							{
+								skippedHooks.Add(result);
+							}
 							else
 							{
 								failedHooks.Add(result);
@@ -80,9 +85,10 @@ internal sealed partial class Generator(GeneratorOptions options)
 
 		var successfulResults = generatedHooks.OrderBy(x => x.Order).ToList();
 		var failedResults = failedHooks.OrderBy(x => x.Order).ToList();
+		var skippedResults = skippedHooks.OrderBy(x => x.Order).ToList();
 		WarnOnMissingDependencies(successfulResults);
 
-		return new HookGenerationReport(successfulResults, failedResults);
+		return new HookGenerationReport(successfulResults, failedResults, skippedResults);
 	}
 
 	private HookGenerationResult GenerateHookSafely(HookWorkItem workItem)
@@ -127,7 +133,7 @@ internal sealed partial class Generator(GeneratorOptions options)
 
 		if (Helper.HookBlacklist.Contains(hook.HookName))
 		{
-			return HookGenerationResult.Failed(workItem.Order, hook, workItem.Action);
+			return HookGenerationResult.Skipped(workItem.Order, hook, workItem.Action, "hook is blacklisted by generator policy");
 		}
 
 		if (Helper.PatchBlacklist.Contains(hook.Name))
@@ -143,7 +149,7 @@ internal sealed partial class Generator(GeneratorOptions options)
 		if (LocalBlacklist.Contains(hook.HookName))
 		{
 			Logger.Warning($"{hook.HookName} is blacklisted");
-			return HookGenerationResult.Failed(workItem.Order, hook, workItem.Action);
+			return HookGenerationResult.Skipped(workItem.Order, hook, workItem.Action, "hook is blacklisted by generator policy");
 		}
 
 		Type? targetType;

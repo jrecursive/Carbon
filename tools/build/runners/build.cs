@@ -2,6 +2,7 @@
 var defines = GetArg(2);
 var tag = GetArg(3, "edge_build");
 var version = GetVariable("VERSION");
+var generatedHookSourceDir = GetVariable("CARBON_GENERATED_HOOK_SOURCE_DIR");
 var cargoTarget = target.Equals("Debug") || target.Equals("DebugUnix") || target.Equals("Minimal") || target.Equals("MinimalUnix") ? "release" : "prod";
 var isUnix = target.Contains("Unix");
 var noArchive = HasArg("-noarchive");
@@ -13,6 +14,7 @@ if (HasArg("-restore"))
 	noRestore = false;
 }
 var buildVerbosity = "minimal";
+var msbuildDefines = defines?.Replace(";", "%3B");
 
 Run(Path(Home, "tools", "build", "runners", "git.cs"), tag);
 
@@ -32,6 +34,7 @@ Warn($"Tag: {tag}");
 Warn($"Target: {target}");
 Warn($"Defines: {defines ?? "N/A"}");
 Warn($"Version: {version ?? "N/A"}");
+Warn($"Generated Hook Source Dir: {(string.IsNullOrWhiteSpace(generatedHookSourceDir) ? "N/A" : generatedHookSourceDir)}");
 Warn($"Cargo Target: {cargoTarget}");
 Warn($"Clean: {(noClean ? "Skip" : "Run")}");
 Warn($"Restore: {(noRestore ? "Skip" : "Run")}");
@@ -44,19 +47,32 @@ if (!noClean)
 }
 
 DotNet.ExitOnError(true);
+var msbuildProperties = new System.Collections.Generic.List<string>
+{
+	$"/p:UserConstants=\"{msbuildDefines}\"",
+	$"/p:UserVersion=\"{version}\""
+};
+
+if (!string.IsNullOrWhiteSpace(generatedHookSourceDir))
+{
+	msbuildProperties.Add($"/p:GeneratedHookSourceDir=\"{generatedHookSourceDir}\"");
+}
+
 if (!noClean)
 {
 	DotNet.Run("clean", PathEnquotes(Home, "src"), "--configuration", target, "--verbosity", buildVerbosity);
 }
 if (noRestore)
 {
-	DotNet.Run("build", PathEnquotes(Home, "src"), "--configuration", target, "--verbosity", buildVerbosity, "--no-restore",
-		$"/p:UserConstants=\"{defines}\"", $"/p:UserVersion=\"{version}\"");
+	var buildArgs = new System.Collections.Generic.List<string> { "build", PathEnquotes(Home, "src"), "--configuration", target, "--verbosity", buildVerbosity, "--no-restore" };
+	buildArgs.AddRange(msbuildProperties);
+	DotNet.Run(buildArgs.ToArray());
 }
 else
 {
-	DotNet.Run("build", PathEnquotes(Home, "src"), "--configuration", target, "--verbosity", buildVerbosity,
-		$"/p:UserConstants=\"{defines}\"", $"/p:UserVersion=\"{version}\"");
+	var buildArgs = new System.Collections.Generic.List<string> { "build", PathEnquotes(Home, "src"), "--configuration", target, "--verbosity", buildVerbosity };
+	buildArgs.AddRange(msbuildProperties);
+	DotNet.Run(buildArgs.ToArray());
 }
 
 Files.Copy(Path(Home, "tools", "helpers", "Carbon.targets"), Path(Home, "release", ".tmp", target, "Carbon.targets"));
