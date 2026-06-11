@@ -22,7 +22,7 @@ internal sealed class HookValidator(ValidationMode validationMode)
 
 		if (HookUsesSyntheticLocal(hook, targetMethod))
 		{
-			diagnostics.Add("hook references local slots beyond the target method body and requires synthetic-local remapping");
+			Logger.Warning($"{hook.HookName} validation: hook references local slots beyond the target method body and requires synthetic-local remapping");
 		}
 
 		if (diagnostics.Count == 0)

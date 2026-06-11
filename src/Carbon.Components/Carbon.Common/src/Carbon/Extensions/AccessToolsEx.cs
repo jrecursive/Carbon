@@ -16,12 +16,19 @@ public static class AccessToolsEx
 		{
 			return type;
 		}
-		return searchCache[name] = AccessTools.TypeByName(name) ?? SearchTypeByName(name);
+
+		type = AccessTools.TypeByName(name) ?? SearchTypeByName(name);
+		if (type == null && name.Contains('/'))
+		{
+			type = AccessTools.TypeByName(name.Replace('/', '+')) ?? SearchTypeByName(name.Replace('/', '+'));
+		}
+
+		return searchCache[name] = type;
 	}
 
 	private static Type SearchTypeByName(string name)
 	{
-		var type = Type.GetType(name, throwOnError: false);
+		var type = ResolveKnownTypeName(name) ?? Type.GetType(name, throwOnError: false);
 		if (type != null)
 			return type;
 
@@ -81,6 +88,17 @@ public static class AccessToolsEx
 			return type;
 
 		return types.FirstOrDefault(t => t.Name == name);
+	}
+
+	private static Type ResolveKnownTypeName(string name)
+	{
+		return name switch
+		{
+			"System.ReadOnlySpan`1[System.Byte]" => typeof(ReadOnlySpan<byte>),
+			"System.ReadOnlySpan<System.Byte>" => typeof(ReadOnlySpan<byte>),
+			"System.ReadOnlySpan<byte>" => typeof(ReadOnlySpan<byte>),
+			_ => null
+		};
 	}
 
 	private static Type ResolveCompilerGeneratedStateMachineType(string name, IEnumerable<Type> types)

@@ -43,8 +43,10 @@ internal sealed class OutputWriter(string outputFolder, string managedFolder, bo
 			gameProtocol,
 			generatedCount = report.SuccessfulHooks.Count,
 			failedCount = report.FailedHooks.Count,
+			skippedCount = report.SkippedHooks.Count,
 			generated = report.SuccessfulHooks.Select(ToSummaryItem).ToArray(),
 			failed = report.FailedHooks.Select(ToSummaryItem).ToArray(),
+			skipped = report.SkippedHooks.Select(ToSummaryItem).ToArray(),
 		};
 
 		File.WriteAllText(summaryPath, JsonSerializer.Serialize(summary, new JsonSerializerOptions { WriteIndented = true }));

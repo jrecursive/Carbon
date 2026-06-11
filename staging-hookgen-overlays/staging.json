@@ -1,0 +1,108 @@
+{
+  "patches": [
+    {
+      "name": "OnPlayerVoice",
+      "reason": "Installed staging BasePlayer.OnReceivedVoice now takes ReadOnlySpan<byte> instead of byte[].",
+      "set": {
+        "Signature.Parameters": [
+          "System.ReadOnlySpan<System.Byte>"
+        ]
+      }
+    },
+    {
+      "name": "OnInterferenceUpdate",
+      "reason": "Installed staging AutoTurret.RecalculateInterference returns bool.",
+      "set": {
+        "Signature.ReturnType": "System.Boolean"
+      }
+    },
+    {
+      "name": "CanUseFuel",
+      "reason": "Installed staging fuel target returns int.",
+      "set": {
+        "Signature.ReturnType": "System.Int32"
+      }
+    },
+    {
+      "name": "OnLootEntity",
+      "reason": "Installed staging loot target returns bool.",
+      "set": {
+        "Signature.ReturnType": "System.Boolean"
+      }
+    },
+    {
+      "name": "OnLootEntity [patch]",
+      "reason": "Installed staging loot patch target returns bool.",
+      "set": {
+        "Signature.ReturnType": "System.Boolean"
+      }
+    },
+    {
+      "name": "OnTerrainCreate",
+      "reason": "Installed staging TerrainMeta.Create returns GameObject.",
+      "set": {
+        "Signature.ReturnType": "UnityEngine.GameObject"
+      }
+    },
+    {
+      "name": "OnEntityBuilt",
+      "reason": "Installed staging construction target returns BaseEntity.",
+      "set": {
+        "Signature.ReturnType": "BaseEntity"
+      }
+    },
+    {
+      "name": "OnServerInitialize",
+      "reason": "Installed staging server initialize target returns bool.",
+      "set": {
+        "Signature.ReturnType": "System.Boolean"
+      }
+    },
+    {
+      "name": "OnBallistaGunReload",
+      "reason": "Installed staging ballista reload target returns void.",
+      "set": {
+        "Signature.ReturnType": "System.Void"
+      }
+    },
+    {
+      "name": "OnPlayerSpawn",
+      "reason": "Installed staging player spawn target returns BasePlayer.",
+      "set": {
+        "Signature.ReturnType": "BasePlayer"
+      }
+    },
+    {
+      "name": "OnItemCraft",
+      "reason": "Installed staging ItemCrafter.CraftItem has an added final int argument.",
+      "set": {
+        "Signature.Parameters": [
+          "ItemBlueprint",
+          "BasePlayer",
+          "ProtoBuf.Item/InstanceData",
+          "System.Int32",
+          "System.Int32",
+          "Item",
+          "System.Boolean",
+          "System.Int32"
+        ]
+      }
+    },
+    {
+      "name": "FixItemKeyId [patch]",
+      "reason": "Installed staging ItemCrafter.CraftItem has an added final int argument.",
+      "set": {
+        "Signature.Parameters": [
+          "ItemBlueprint",
+          "BasePlayer",
+          "ProtoBuf.Item/InstanceData",
+          "System.Int32",
+          "System.Int32",
+          "Item",
+          "System.Boolean",
+          "System.Int32"
+        ]
+      }
+    }
+  ]
+}

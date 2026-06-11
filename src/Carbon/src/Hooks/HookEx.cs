@@ -234,7 +234,7 @@ public class HookEx : IDisposable, IHook
 		{
 			MethodType.Getter => AccessTools.PropertyGetter(TargetType, TargetMethod),
 			MethodType.Setter => AccessTools.PropertySetter(TargetType, TargetMethod),
-			_ => GetStandardTargetMethodInfo() ?? GetCompilerGeneratedLocalFunctionTarget()
+			_ => GetStandardTargetMethodInfo() ?? GetCompilerGeneratedLocalFunctionTarget() ?? GetUniqueTargetMethodByName()
 		};
 	}
 
@@ -272,6 +272,32 @@ public class HookEx : IDisposable, IHook
 			}
 
 			if (!MatchesTargetParameters(method.GetParameters()))
+			{
+				continue;
+			}
+
+			if (result != null)
+			{
+				return null;
+			}
+
+			result = method;
+		}
+
+		return result;
+	}
+
+	private MethodInfo GetUniqueTargetMethodByName()
+	{
+		if (TargetType == null || string.IsNullOrEmpty(TargetMethod) || TargetMethodArgNames.Length != 0)
+		{
+			return null;
+		}
+
+		MethodInfo result = null;
+		foreach (MethodInfo method in AccessTools.GetDeclaredMethods(TargetType))
+		{
+			if (!string.Equals(method.Name, TargetMethod, StringComparison.Ordinal))
 			{
 				continue;
 			}

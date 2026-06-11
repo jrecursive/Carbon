@@ -44,6 +44,36 @@ internal static class HookPolicies
 		       && hook.Signature.Name == "OnProjectileAttack";
 	}
 
+	public static bool MatchesOnPlayerVoiceReadOnlySpanPolicy(HookDef.Data hook)
+	{
+		return hook.HookName == "OnPlayerVoice"
+		       && hook.Name == "OnPlayerVoice"
+		       && hook.TypeName == "BasePlayer"
+		       && hook.Signature.Name == "OnReceivedVoice";
+	}
+
+	public static bool MatchesOnBonusItemDroppedObsoleteBranchPatchPolicy(HookDef.Data hook)
+	{
+		return hook.Name.StartsWith("OnBonusItemDropped [patch ", StringComparison.Ordinal)
+		       && hook.TypeName == "LootContainer"
+		       && hook.Signature.Name == "DropBonusItems";
+	}
+
+	public static bool MatchesFlameTurretTargetCleanupObsoletePolicy(HookDef.Data hook)
+	{
+		return hook.Name == "CanBeTargeted [FlameTurret] [cleanup]"
+		       && hook.TypeName == "FlameTurret"
+		       && hook.Signature.Name == "CheckTrigger";
+	}
+
+	public static bool MatchesFlameTurretCanBeTargetedLeavePolicy(HookDef.Data hook)
+	{
+		return hook.HookName == "CanBeTargeted"
+		       && hook.Name == "CanBeTargeted [FlameTurret]"
+		       && hook.TypeName == "FlameTurret"
+		       && hook.Signature.Name == "CheckTrigger";
+	}
+
 	public static bool MatchesOnWireConnectStackSafePolicy(HookDef.Data hook)
 	{
 		return hook.HookName == "OnWireConnect"
@@ -93,13 +123,26 @@ internal static class HookPolicies
 
 	public static string[] GetEmittedTargetMethodArgs(HookDef.Data hook)
 	{
-		return MatchesOnClanCreatedAsyncSuccessRetargetPolicy(hook) ? ["System.UInt64", "System.String"] : hook.Signature.Parameters;
+		if (MatchesOnClanCreatedAsyncSuccessRetargetPolicy(hook))
+		{
+			return ["System.UInt64", "System.String"];
+		}
+
+		if (MatchesOnPlayerVoiceReadOnlySpanPolicy(hook))
+		{
+			return ["System.ReadOnlySpan<System.Byte>"];
+		}
+
+		return hook.Signature.Parameters;
 	}
 
 	public static bool TryGeneratePolicyBody(StringBuilder body, HookDef.Data hook)
 	{
 		return TryGenerateOnClanCreatedAsyncSuccessRetargetPolicy(body, hook)
+		       || TryGenerateOnPlayerVoiceReadOnlySpanPolicy(body, hook)
 		       || TryGenerateOnPlayerAttackProjectileLeavePolicy(body, hook)
+		       || TryGenerateFlameTurretCanBeTargetedLeavePolicy(body, hook)
+		       || TryGenerateObsoleteNoOpTranspilerPolicy(body, hook)
 		       || TryGenerateOnWireConnectStackSafePolicy(body, hook);
 	}
 
@@ -172,6 +215,29 @@ internal static class HookPolicies
 		return true;
 	}
 
+	private static bool TryGenerateOnPlayerVoiceReadOnlySpanPolicy(StringBuilder body, HookDef.Data hook)
+	{
+		if (!MatchesOnPlayerVoiceReadOnlySpanPolicy(hook))
+		{
+			return false;
+		}
+
+		Helper.Parameters.Add(("self", Tools.TypeByNameEx("BasePlayer") ?? typeof(object)));
+		Helper.Parameters.Add(("data", typeof(byte[])));
+		Helper.ReturnType = typeof(void);
+
+		body.AppendLine("public static bool Prefix(BasePlayer __instance, ReadOnlySpan<byte> data) {");
+		body.AppendLine("byte[] payload = data.Length == 0 ? Array.Empty<byte>() : data.ToArray();");
+		body.AppendLine($"object result = HookCaller.CallStaticHook({HookStringPool.GetOrAdd(hook.HookName)}u, __instance, payload);");
+		body.AppendLine("return result == null;");
+		body.AppendLine("}");
+		body.AppendLine("}");
+		body.AppendLine("}");
+		body.AppendLine("}");
+		body.AppendLine();
+		return true;
+	}
+
 	private static bool TryGenerateOnPlayerAttackProjectileLeavePolicy(StringBuilder body, HookDef.Data hook)
 	{
 		if (!MatchesOnPlayerAttackProjectileLeavePolicy(hook))
@@ -208,6 +274,7 @@ internal static class HookPolicies
 		body.AppendLine("if (returnIndex < 0) return original.AsEnumerable();");
 		body.AppendLine("var hitInfoType = Carbon.Extensions.AccessToolsEx.TypeByName(\"HitInfo\");");
 		body.AppendLine("int hitInfoLocalIndex = Method.GetMethodBody()?.LocalVariables.FirstOrDefault(local => local.LocalType == hitInfoType)?.LocalIndex ?? 2;");
+		body.AppendLine("bool isInsideExceptionBlock = IsInsideExceptionBlock(original, anchorIndex);");
 		body.AppendLine("Label continueLabel = Generator.DefineLabel();");
 		body.AppendLine("Label returnLabel = Generator.DefineLabel();");
 		body.AppendLine("original[returnIndex].labels.Add(returnLabel);");
@@ -220,6 +287,95 @@ internal static class HookPolicies
 		body.AppendLine("edit.Add(new CodeInstruction(OpCodes.Dup));");
 		body.AppendLine("edit.Add(new CodeInstruction(OpCodes.Brfalse_S, continueLabel));");
 		body.AppendLine("edit.Add(new CodeInstruction(OpCodes.Pop));");
+		body.AppendLine("edit.Add(new CodeInstruction(isInsideExceptionBlock ? OpCodes.Leave : OpCodes.Br, returnLabel));");
+		body.AppendLine("var continueInstruction = new CodeInstruction(OpCodes.Pop);");
+		body.AppendLine("continueInstruction.labels.Add(continueLabel);");
+		body.AppendLine("edit.Add(continueInstruction);");
+		body.AppendLine("edit[0].MoveLabelsFrom(original[anchorIndex]).MoveBlocksFrom(original[anchorIndex]);");
+		body.AppendLine("original.InsertRange(anchorIndex, edit);");
+		body.AppendLine("return original.AsEnumerable();");
+		body.AppendLine("}");
+		body.AppendLine("private static bool IsInsideExceptionBlock(List<CodeInstruction> instructions, int index) {");
+		body.AppendLine("int depth = 0;");
+		body.AppendLine("for (int i = 0; i <= index && i < instructions.Count; i++) {");
+		body.AppendLine("foreach (ExceptionBlock block in instructions[i].blocks) {");
+		body.AppendLine("switch (block.blockType) {");
+		body.AppendLine("case ExceptionBlockType.BeginExceptionBlock:");
+		body.AppendLine("depth++;");
+		body.AppendLine("break;");
+		body.AppendLine("case ExceptionBlockType.EndExceptionBlock:");
+		body.AppendLine("depth = Math.Max(0, depth - 1);");
+		body.AppendLine("break;");
+		body.AppendLine("}");
+		body.AppendLine("}");
+		body.AppendLine("}");
+		body.AppendLine("return depth > 0;");
+		body.AppendLine("}");
+		body.AppendLine("}");
+		body.AppendLine("}");
+		body.AppendLine("}");
+		body.AppendLine();
+		return true;
+	}
+
+	private static bool TryGenerateObsoleteNoOpTranspilerPolicy(StringBuilder body, HookDef.Data hook)
+	{
+		string reason;
+		if (MatchesOnBonusItemDroppedObsoleteBranchPatchPolicy(hook))
+		{
+			reason = "Current staging LootContainer.DropBonusItems no longer has the old post-hook branch target used by this OPJ patch.";
+		}
+		else if (MatchesFlameTurretTargetCleanupObsoletePolicy(hook))
+		{
+			reason = "Current staging FlameTurret.CheckTrigger already frees the raycast hit list in a finally block.";
+		}
+		else
+		{
+			return false;
+		}
+
+		body.AppendLine("public static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> Instructions) {");
+		body.AppendLine($"// {reason}");
+		body.AppendLine("return Instructions;");
+		body.AppendLine("}");
+		body.AppendLine("}");
+		body.AppendLine("}");
+		body.AppendLine("}");
+		body.AppendLine();
+		return true;
+	}
+
+	private static bool TryGenerateFlameTurretCanBeTargetedLeavePolicy(StringBuilder body, HookDef.Data hook)
+	{
+		if (!MatchesFlameTurretCanBeTargetedLeavePolicy(hook))
+		{
+			return false;
+		}
+
+		Helper.Parameters.Add(("local7", Tools.TypeByNameEx("BasePlayer") ?? typeof(object)));
+		Helper.Parameters.Add(("self", Tools.TypeByNameEx("FlameTurret") ?? typeof(object)));
+		Helper.ReturnType = typeof(bool);
+
+		body.AppendLine("public static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> Instructions, ILGenerator Generator, MethodBase Method) {");
+		body.AppendLine("List<CodeInstruction> original = new List<CodeInstruction>(Instructions);");
+		body.AppendLine($"int anchorIndex = System.Math.Min({hook.InjectionIndex}, original.Count - 1);");
+		body.AppendLine("int retIndex = original.FindLastIndex(instruction => instruction.opcode == OpCodes.Ret);");
+		body.AppendLine("if (anchorIndex < 0 || retIndex <= 0) return original.AsEnumerable();");
+		body.AppendLine("int returnLoadIndex = retIndex - 1;");
+		body.AppendLine("Label continueLabel = Generator.DefineLabel();");
+		body.AppendLine("Label returnLabel = Generator.DefineLabel();");
+		body.AppendLine("original[returnLoadIndex].labels.Add(returnLabel);");
+		body.AppendLine("var hookMethod = AccessTools.Method(typeof(HookCaller), nameof(HookCaller.CallStaticHook), new System.Type[] { typeof(uint), typeof(object), typeof(object) });");
+		body.AppendLine("List<CodeInstruction> edit = new List<CodeInstruction>();");
+		body.AppendLine($"edit.Add(new CodeInstruction(OpCodes.Ldc_I4, unchecked((int){HookStringPool.GetOrAdd(hook.HookName)}u)));");
+		body.AppendLine("edit.Add(__GeneratorRuntime.CreateLoadLocalInstruction(Generator, Method, 7, Carbon.Extensions.AccessToolsEx.TypeByName(\"BasePlayer\")));");
+		body.AppendLine("edit.Add(new CodeInstruction(OpCodes.Ldarg_0));");
+		body.AppendLine("edit.Add(new CodeInstruction(OpCodes.Call, hookMethod));");
+		body.AppendLine("edit.Add(new CodeInstruction(OpCodes.Dup));");
+		body.AppendLine("edit.Add(new CodeInstruction(OpCodes.Isinst, typeof(bool)));");
+		body.AppendLine("edit.Add(new CodeInstruction(OpCodes.Brfalse_S, continueLabel));");
+		body.AppendLine("edit.Add(new CodeInstruction(OpCodes.Unbox_Any, typeof(bool)));");
+		body.AppendLine("edit.Add(__GeneratorRuntime.CreateStoreLocalInstruction(Generator, Method, 5, typeof(bool)));");
 		body.AppendLine("edit.Add(new CodeInstruction(OpCodes.Leave, returnLabel));");
 		body.AppendLine("var continueInstruction = new CodeInstruction(OpCodes.Pop);");
 		body.AppendLine("continueInstruction.labels.Add(continueLabel);");
