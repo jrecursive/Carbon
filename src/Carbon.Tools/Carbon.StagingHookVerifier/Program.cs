@@ -152,7 +152,9 @@ internal static partial class Program
 				continue;
 			}
 
-			if (!options.AllGeneratedHooks && !StagingHookCompatManifest.TryGet(metadata.HookFullName, out _))
+			if (!options.AllGeneratedHooks
+			    && !StagingHookCompatManifest.TryGet(metadata.HookFullName, out _)
+			    && !MatchesInstallRequest(metadata, options.InstallHookRequests))
 			{
 				stats.UnwatchedHooks++;
 				continue;
@@ -343,19 +345,77 @@ internal static partial class Program
 			.OrderBy(item => item.Metadata.HookFullName, StringComparer.Ordinal)
 			.ToList();
 
-		foreach (HookVerificationItem item in distinct)
+		foreach (InstallCheckResult check in RunChildInstallHooks(distinct, options))
 		{
 			stats.InstallTestedHooks++;
-			ChildInstallResult result = RunChildInstallHook(item.Metadata.HookFullName, options);
-			if (result.Success)
+			if (check.Result.Success)
 			{
 				stats.InstallPassedHooks++;
 				continue;
 			}
 
 			stats.InstallFailedHooks++;
-			failures.Add(new VerificationFailure(item.Metadata.DisplayName, "install", result.Message));
+			failures.Add(new VerificationFailure(check.Item.Metadata.DisplayName, "install", check.Result.Message));
 		}
+	}
+
+	private static bool MatchesInstallRequest(HookMetadata metadata, IReadOnlyList<string> requests)
+	{
+		foreach (string request in requests)
+		{
+			if (string.IsNullOrWhiteSpace(request))
+			{
+				continue;
+			}
+
+			string normalized = request.Trim();
+			Match hashMatch = HookRequestWithHashRegex().Match(normalized);
+			if (hashMatch.Success)
+			{
+				string hookName = hashMatch.Groups["name"].Value.Trim();
+				if (string.Equals(metadata.HookName, hookName, StringComparison.Ordinal)
+				    || string.Equals(metadata.HookFullName, hookName, StringComparison.Ordinal))
+				{
+					return true;
+				}
+
+				continue;
+			}
+
+			if (string.Equals(metadata.HookFullName, normalized, StringComparison.Ordinal)
+			    || string.Equals(metadata.HookName, normalized, StringComparison.Ordinal))
+			{
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	private static List<InstallCheckResult> RunChildInstallHooks(IReadOnlyList<HookVerificationItem> items, Options options)
+	{
+		using SemaphoreSlim semaphore = new(Math.Max(1, options.MaxParallelInstallChecks));
+		Task<InstallCheckResult>[] tasks = items
+			.Select(item => Task.Run(() =>
+			{
+				semaphore.Wait();
+				try
+				{
+					return new InstallCheckResult(item, RunChildInstallHook(item.Metadata.HookFullName, options));
+				}
+				catch (Exception ex)
+				{
+					return new InstallCheckResult(item, new ChildInstallResult(false, ex.Message));
+				}
+				finally
+				{
+					semaphore.Release();
+				}
+			}))
+			.ToArray();
+
+		Task.WaitAll(tasks);
+		return tasks.Select(task => task.GetAwaiter().GetResult()).ToList();
 	}
 
 	private static bool TryResolveInstallRequest(
@@ -385,6 +445,15 @@ internal static partial class Program
 					 || string.Equals(item.Metadata.HookFullName, hookName, StringComparison.Ordinal))
 					&& item.Metadata.Identifier.EndsWith(hash, StringComparison.OrdinalIgnoreCase))
 				.ToList();
+
+			if (items.Count == 0)
+			{
+				items = index.Items
+					.Where(item =>
+						string.Equals(item.Metadata.HookName, hookName, StringComparison.Ordinal)
+						|| string.Equals(item.Metadata.HookFullName, hookName, StringComparison.Ordinal))
+					.ToList();
+			}
 		}
 		else if (index.ByFullName.TryGetValue(normalized, out List<HookVerificationItem>? byFullName))
 		{
@@ -1300,6 +1369,7 @@ internal static partial class Program
 		IReadOnlySet<string> AllowedSuppressions,
 		string? DumpHookFullName,
 		IReadOnlyList<string> InstallHookRequests,
+		int MaxParallelInstallChecks,
 		string? ChildInstallHookFullName)
 	{
 		public static Options Parse(string[] args)
@@ -1315,6 +1385,7 @@ internal static partial class Program
 			string? allowSuppressionFile = null;
 			string? dumpHookFullName = null;
 			string? childInstallHookFullName = null;
+			int maxParallelInstallChecks = 8;
 			List<string> installHookRequests = new();
 
 			for (int i = 0; i < args.Length; i++)
@@ -1347,6 +1418,12 @@ internal static partial class Program
 						allGeneratedHooks = false;
 						strictNoSuppression = false;
 						verifyCompatibilityShims = true;
+						break;
+
+					case "--requested-only":
+						allGeneratedHooks = false;
+						installCompatibilityHooks = false;
+						verifyCompatibilityShims = false;
 						break;
 
 					case "--strict-no-suppression":
@@ -1382,6 +1459,10 @@ internal static partial class Program
 						installHookRequests.AddRange(ReadHookRequestsFromLog(RequireValue(args, ref i, "--install-hooks-from-log")));
 						break;
 
+					case "--max-parallel-install-checks":
+						maxParallelInstallChecks = int.Parse(RequireValue(args, ref i, "--max-parallel-install-checks"));
+						break;
+
 					case "--dump-hook":
 						dumpHookFullName = RequireValue(args, ref i, "--dump-hook");
 						break;
@@ -1411,6 +1492,7 @@ internal static partial class Program
 				LoadAllowedSuppressions(allowSuppressionFile),
 				dumpHookFullName,
 				installHookRequests.Distinct(StringComparer.Ordinal).ToArray(),
+				Math.Max(1, maxParallelInstallChecks),
 				childInstallHookFullName);
 		}
 
@@ -1454,7 +1536,7 @@ internal static partial class Program
 
 		public static void PrintUsage()
 		{
-			Console.WriteLine("Usage: Carbon.StagingHookVerifier --server-root <path> [--carbon-managed <path>] [--hooks-dir <path>] [--all-generated] [--strict-no-suppression] [--allow-suppression-file <path>] [--install-hook <hook>] [--install-hooks-from-log <path>] [--install-all-dynamic] [--dump-hook <hook-full-name>]");
+			Console.WriteLine("Usage: Carbon.StagingHookVerifier --server-root <path> [--carbon-managed <path>] [--hooks-dir <path>] [--all-generated] [--requested-only] [--strict-no-suppression] [--allow-suppression-file <path>] [--install-hook <hook>] [--install-hooks-from-log <path>] [--install-all-dynamic] [--max-parallel-install-checks <n>] [--dump-hook <hook-full-name>]");
 		}
 
 		private static IReadOnlyList<string> ReadHookRequestsFromLog(string path)
@@ -1545,6 +1627,8 @@ internal static partial class Program
 		Dictionary<string, List<HookVerificationItem>> ByFullName);
 
 	private readonly record struct ChildInstallResult(bool Success, string Message);
+
+	private readonly record struct InstallCheckResult(HookVerificationItem Item, ChildInstallResult Result);
 
 	private sealed class VerificationStats
 	{

@@ -14,6 +14,7 @@ INSTALL_COMPAT_HOOKS=1
 INSTALL_ALL_DYNAMIC=0
 INSTALL_HOOKS_FROM_LOG=""
 INSTALL_HOOKS=()
+MAX_PARALLEL_INSTALL_CHECKS="${CARBON_HOOK_VERIFY_PARALLELISM:-8}"
 
 usage() {
   cat <<'USAGE'
@@ -29,6 +30,8 @@ Options:
   --hooks-dir <path>        Hook DLL directory to verify. Defaults to
                             <carbon-managed>/hooks.
   --all-generated           Verify every generated hook in the hook DLLs. This is the default.
+  --requested-only          Verify only hook requests passed through --install-hook or
+                            --install-hooks-from-log.
   --focused-compat          Verify only the legacy staging compatibility shim surface.
   --strict-no-suppression   Fail if generated hooks are suppressed. This is the default.
   --allow-suppression-file  JSON allow-list for explicit generated hook suppression.
@@ -38,6 +41,9 @@ Options:
   --install-hook <hook>     Install-test one generated hook by full name, hook name, or log token.
   --install-hooks-from-log  Parse hook request/patch failures from a Carbon/current_errors log.
   --install-all-dynamic     Install-test every generated dynamic hook in child processes.
+  --max-parallel-install-checks <n>
+                            Maximum child install-test processes. Defaults to
+                            $CARBON_HOOK_VERIFY_PARALLELISM or 8.
   -c, --configuration <cfg> Verifier build configuration. Defaults to Release.
   -h, --help                Show this help.
 USAGE
@@ -65,6 +71,12 @@ while [[ $# -gt 0 ]]; do
       ALL_GENERATED=0
       STRICT_NO_SUPPRESSION=0
       VERIFY_COMPAT_SHIMS=1
+      shift
+      ;;
+    --requested-only)
+      ALL_GENERATED=0
+      INSTALL_COMPAT_HOOKS=0
+      VERIFY_COMPAT_SHIMS=0
       shift
       ;;
     --strict-no-suppression)
@@ -99,6 +111,10 @@ while [[ $# -gt 0 ]]; do
     --install-all-dynamic)
       INSTALL_ALL_DYNAMIC=1
       shift
+      ;;
+    --max-parallel-install-checks)
+      MAX_PARALLEL_INSTALL_CHECKS="${2:?Missing value for $1}"
+      shift 2
       ;;
     -c|--configuration)
       CONFIGURATION="${2:?Missing value for $1}"
@@ -168,6 +184,8 @@ RUN_ARGS=(
 
 if [[ "${ALL_GENERATED}" == "1" ]]; then
   RUN_ARGS+=(--all-generated)
+else
+  RUN_ARGS+=(--requested-only)
 fi
 
 if [[ "${STRICT_NO_SUPPRESSION}" == "1" ]]; then
@@ -199,5 +217,7 @@ fi
 for hook in "${INSTALL_HOOKS[@]}"; do
   RUN_ARGS+=(--install-hook "${hook}")
 done
+
+RUN_ARGS+=(--max-parallel-install-checks "${MAX_PARALLEL_INSTALL_CHECKS}")
 
 dotnet run --no-build --project "${PROJECT}" -c "${CONFIGURATION}" -- "${RUN_ARGS[@]}"
