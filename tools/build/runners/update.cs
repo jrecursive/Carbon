@@ -9,7 +9,6 @@ var useInstalledStagingManagedFiles = ShouldUseInstalledStagingManagedFiles();
 
 DotNet.Run("build", PathEnquotes(Home, "tools", "depot", "DepotDownloader"));
 DotNet.Run("build", PathEnquotes(Home, "src", "Carbon.Tools", "Carbon.Publicizer"));
-DotNet.Run("build", PathEnquotes(Home, "src", "Carbon.Tools", "Carbon.Generator"));
 
 System.Threading.Tasks.Task.WaitAll(
     System.Threading.Tasks.Task.Run(() => DownloadRustFiles("windows")),
@@ -106,22 +105,3 @@ bool ShouldUseInstalledStagingManagedFiles()
 {
 	return string.Equals(branch, "staging", StringComparison.OrdinalIgnoreCase);
 }
-
-var generatorRustManagedPath = useInstalledStagingManagedFiles
-	? Path(Home, "rust", "linux", "RustDedicated_Data", "Managed")
-	: Path(Home, "rust", "windows", "RustDedicated_Data", "Managed");
-
-DotNet.Run("run", "--no-build", "--project", PathEnquotes(Home, "src", "Carbon.Tools", "Carbon.Generator"),
-				  "--plugininput", PathEnquotes(Home, "src", "Carbon.Components", "Carbon.Common", "src", "Carbon", "CorePlugin"),
-				  "--rust", PathEnquotes(generatorRustManagedPath));
-
-var modules = new System.Collections.Generic.List<string>();
-modules.AddRange(Directories.Get(Path(Home, "src", "Carbon.Components", "Carbon.Common", "src", "Carbon", "Modules")));
-modules.AddRange(Directories.Get(Path(Home, "src", "Carbon.Components", "Carbon.Modules", "src")));
-
-var modulePaths = string.Join(";", modules);
-DotNet.Run("run", "--no-build", "--project", PathEnquotes(Home, "src", "Carbon.Tools", "Carbon.Generator"),
-	"--plugininput", $"\"{modulePaths}\"",
-	"--pluginnamespace", "Carbon.Modules",
-	"--basename", "module",
-	"--rust", PathEnquotes(generatorRustManagedPath));

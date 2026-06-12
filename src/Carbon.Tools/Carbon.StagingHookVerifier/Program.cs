@@ -1,12 +1,14 @@
 using System.Reflection;
 using System.Reflection.Emit;
+using System.Text.RegularExpressions;
+using System.Diagnostics;
 using System.Text.Json;
 using HarmonyLib;
 using Carbon.Hooks;
 
 namespace Carbon.StagingHookVerifier;
 
-internal static class Program
+internal static partial class Program
 {
 	private const int HookFlagsStatic = 1;
 	private const int HookFlagsPatch = 2;
@@ -55,7 +57,17 @@ internal static class Program
 				return DumpHookTarget(hooks, options.DumpHookFullName) ? 0 : 1;
 			}
 
-			VerifyHooks(hooks, options, failures, stats);
+			HookVerificationIndex index = BuildHookIndex(hooks, options, failures, stats);
+
+			if (!string.IsNullOrWhiteSpace(options.ChildInstallHookFullName))
+			{
+				VerifyChildInstallHook(index, options.ChildInstallHookFullName, failures, stats);
+			}
+			else
+			{
+				VerifyPatchItems(index.PatchItems, index.ByFullName, failures, stats);
+				VerifyRequestedInstallHooks(index, options, failures, stats);
+			}
 
 			if (options.VerifyCompatibilityShims)
 			{
@@ -103,7 +115,7 @@ internal static class Program
 		}
 	}
 
-	private static void VerifyHooks(
+	private static HookVerificationIndex BuildHookIndex(
 		List<HookMetadata> hooks,
 		Options options,
 		List<VerificationFailure> failures,
@@ -140,7 +152,9 @@ internal static class Program
 				continue;
 			}
 
-			if (!options.AllGeneratedHooks && !StagingHookCompatManifest.TryGet(metadata.HookFullName, out _))
+			if (!options.AllGeneratedHooks
+			    && !StagingHookCompatManifest.TryGet(metadata.HookFullName, out _)
+			    && !MatchesInstallRequest(metadata, options.InstallHookRequests))
 			{
 				stats.UnwatchedHooks++;
 				continue;
@@ -207,7 +221,7 @@ internal static class Program
 			sameName.Add(item);
 		}
 
-		VerifyPatchItems(patchItems, hookItemsByFullName, failures, stats);
+		return new HookVerificationIndex(hookItems, patchItems, hookItemsByFullName);
 	}
 
 	private static void VerifyPatchItems(
@@ -256,7 +270,7 @@ internal static class Program
 
 	private static void AddPatchInstallOrder(
 		HookVerificationItem item,
-		Dictionary<string, List<HookVerificationItem>> patchItemsByFullName,
+		Dictionary<string, List<HookVerificationItem>> hookItemsByFullName,
 		List<HookVerificationItem> installOrder,
 		HashSet<HookVerificationItem> visited,
 		HashSet<HookVerificationItem> visiting)
@@ -273,20 +287,311 @@ internal static class Program
 
 		foreach (string dependency in item.Metadata.Dependencies)
 		{
-			if (!patchItemsByFullName.TryGetValue(dependency, out List<HookVerificationItem>? dependencyItems) || dependencyItems.Count == 0)
+			if (!hookItemsByFullName.TryGetValue(dependency, out List<HookVerificationItem>? dependencyItems) || dependencyItems.Count == 0)
 			{
 				throw new InvalidOperationException($"Declared dependency '{dependency}' was not found.");
 			}
 
 			foreach (HookVerificationItem dependencyItem in dependencyItems)
 			{
-				AddPatchInstallOrder(dependencyItem, patchItemsByFullName, installOrder, visited, visiting);
+				AddPatchInstallOrder(dependencyItem, hookItemsByFullName, installOrder, visited, visiting);
 			}
 		}
 
 		visiting.Remove(item);
 		visited.Add(item);
 		installOrder.Add(item);
+	}
+
+	private static void VerifyRequestedInstallHooks(
+		HookVerificationIndex index,
+		Options options,
+		List<VerificationFailure> failures,
+		VerificationStats stats)
+	{
+		List<HookVerificationItem> requested = new();
+
+		if (options.InstallCompatibilityHooks)
+		{
+			foreach (StagingHookCompatEntry entry in StagingHookCompatManifest.All)
+			{
+				if (index.ByFullName.TryGetValue(entry.HookFullName, out List<HookVerificationItem>? items))
+				{
+					requested.AddRange(items);
+				}
+			}
+		}
+
+		foreach (string request in options.InstallHookRequests)
+		{
+			if (TryResolveInstallRequest(index, request, out List<HookVerificationItem> items, out string error))
+			{
+				requested.AddRange(items);
+			}
+			else
+			{
+				failures.Add(new VerificationFailure(request, "install-request", error));
+			}
+		}
+
+		if (options.InstallAllDynamicHooks)
+		{
+			requested.AddRange(index.Items.Where(item => !item.Metadata.IsPatch && !item.Metadata.IsStatic));
+		}
+
+		List<HookVerificationItem> distinct = requested
+			.GroupBy(item => item.Metadata.HookFullName, StringComparer.Ordinal)
+			.Select(group => group.First())
+			.OrderBy(item => item.Metadata.HookFullName, StringComparer.Ordinal)
+			.ToList();
+
+		foreach (InstallCheckResult check in RunChildInstallHooks(distinct, options))
+		{
+			stats.InstallTestedHooks++;
+			if (check.Result.Success)
+			{
+				stats.InstallPassedHooks++;
+				continue;
+			}
+
+			stats.InstallFailedHooks++;
+			failures.Add(new VerificationFailure(check.Item.Metadata.DisplayName, "install", check.Result.Message));
+		}
+	}
+
+	private static bool MatchesInstallRequest(HookMetadata metadata, IReadOnlyList<string> requests)
+	{
+		foreach (string request in requests)
+		{
+			if (string.IsNullOrWhiteSpace(request))
+			{
+				continue;
+			}
+
+			string normalized = request.Trim();
+			Match hashMatch = HookRequestWithHashRegex().Match(normalized);
+			if (hashMatch.Success)
+			{
+				string hookName = hashMatch.Groups["name"].Value.Trim();
+				if (string.Equals(metadata.HookName, hookName, StringComparison.Ordinal)
+				    || string.Equals(metadata.HookFullName, hookName, StringComparison.Ordinal))
+				{
+					return true;
+				}
+
+				continue;
+			}
+
+			if (string.Equals(metadata.HookFullName, normalized, StringComparison.Ordinal)
+			    || string.Equals(metadata.HookName, normalized, StringComparison.Ordinal))
+			{
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	private static List<InstallCheckResult> RunChildInstallHooks(IReadOnlyList<HookVerificationItem> items, Options options)
+	{
+		using SemaphoreSlim semaphore = new(Math.Max(1, options.MaxParallelInstallChecks));
+		Task<InstallCheckResult>[] tasks = items
+			.Select(item => Task.Run(() =>
+			{
+				semaphore.Wait();
+				try
+				{
+					return new InstallCheckResult(item, RunChildInstallHook(item.Metadata.HookFullName, options));
+				}
+				catch (Exception ex)
+				{
+					return new InstallCheckResult(item, new ChildInstallResult(false, ex.Message));
+				}
+				finally
+				{
+					semaphore.Release();
+				}
+			}))
+			.ToArray();
+
+		Task.WaitAll(tasks);
+		return tasks.Select(task => task.GetAwaiter().GetResult()).ToList();
+	}
+
+	private static bool TryResolveInstallRequest(
+		HookVerificationIndex index,
+		string request,
+		out List<HookVerificationItem> items,
+		out string error)
+	{
+		items = new List<HookVerificationItem>();
+		error = string.Empty;
+
+		if (string.IsNullOrWhiteSpace(request))
+		{
+			error = "Empty hook install request.";
+			return false;
+		}
+
+		string normalized = request.Trim();
+		Match hashMatch = HookRequestWithHashRegex().Match(normalized);
+		if (hashMatch.Success)
+		{
+			string hookName = hashMatch.Groups["name"].Value.Trim();
+			string hash = hashMatch.Groups["hash"].Value;
+			items = index.Items
+				.Where(item =>
+					(string.Equals(item.Metadata.HookName, hookName, StringComparison.Ordinal)
+					 || string.Equals(item.Metadata.HookFullName, hookName, StringComparison.Ordinal))
+					&& item.Metadata.Identifier.EndsWith(hash, StringComparison.OrdinalIgnoreCase))
+				.ToList();
+
+			if (items.Count == 0)
+			{
+				items = index.Items
+					.Where(item =>
+						string.Equals(item.Metadata.HookName, hookName, StringComparison.Ordinal)
+						|| string.Equals(item.Metadata.HookFullName, hookName, StringComparison.Ordinal))
+					.ToList();
+			}
+		}
+		else if (index.ByFullName.TryGetValue(normalized, out List<HookVerificationItem>? byFullName))
+		{
+			items = byFullName.ToList();
+		}
+		else
+		{
+			items = index.Items
+				.Where(item => string.Equals(item.Metadata.HookName, normalized, StringComparison.Ordinal))
+				.ToList();
+		}
+
+		if (items.Count == 0)
+		{
+			error = $"No generated hook matched install request '{request}'.";
+			return false;
+		}
+
+		return true;
+	}
+
+	private static ChildInstallResult RunChildInstallHook(string hookFullName, Options options)
+	{
+		string verifierAssembly = Assembly.GetExecutingAssembly().Location;
+		ProcessStartInfo startInfo = new("dotnet")
+		{
+			RedirectStandardOutput = true,
+			RedirectStandardError = true,
+			UseShellExecute = false
+		};
+
+		startInfo.ArgumentList.Add(verifierAssembly);
+		startInfo.ArgumentList.Add("--server-root");
+		startInfo.ArgumentList.Add(options.ServerRoot);
+		startInfo.ArgumentList.Add("--carbon-managed");
+		startInfo.ArgumentList.Add(options.CarbonManaged);
+		startInfo.ArgumentList.Add("--hooks-dir");
+		startInfo.ArgumentList.Add(options.HooksDir);
+		startInfo.ArgumentList.Add("--all-generated");
+		if (options.StrictNoSuppression)
+		{
+			startInfo.ArgumentList.Add("--strict-no-suppression");
+		}
+
+		startInfo.ArgumentList.Add("--child-install-hook");
+		startInfo.ArgumentList.Add(hookFullName);
+
+		using Process process = Process.Start(startInfo) ?? throw new InvalidOperationException("Failed to start hook install child process.");
+		Task<string> stdoutTask = process.StandardOutput.ReadToEndAsync();
+		Task<string> stderrTask = process.StandardError.ReadToEndAsync();
+		if (!process.WaitForExit(60000))
+		{
+			try
+			{
+				process.Kill(entireProcessTree: true);
+			}
+			catch
+			{
+				// The process may already have exited between timeout and kill.
+			}
+
+			return new ChildInstallResult(false, "Child install test timed out after 60s.");
+		}
+
+		string stdout = stdoutTask.GetAwaiter().GetResult();
+		string stderr = stderrTask.GetAwaiter().GetResult();
+
+		if (process.ExitCode == 0)
+		{
+			return new ChildInstallResult(true, stdout.Trim());
+		}
+
+		string output = string.Join(Environment.NewLine, new[] { stdout.Trim(), stderr.Trim() }.Where(x => !string.IsNullOrWhiteSpace(x)));
+		if (string.IsNullOrWhiteSpace(output))
+		{
+			output = $"Child install test exited with code {process.ExitCode}.";
+		}
+
+		return new ChildInstallResult(false, output);
+	}
+
+	private static void VerifyChildInstallHook(
+		HookVerificationIndex index,
+		string hookFullName,
+		List<VerificationFailure> failures,
+		VerificationStats stats)
+	{
+		if (!index.ByFullName.TryGetValue(hookFullName, out List<HookVerificationItem>? items) || items.Count == 0)
+		{
+			failures.Add(new VerificationFailure(hookFullName, "install", "Generated hook was not found."));
+			return;
+		}
+
+		foreach (HookVerificationItem item in items)
+		{
+			stats.InstallTestedHooks++;
+			try
+			{
+				InstallHookWithDependencies(item, index.ByFullName);
+				stats.InstallPassedHooks++;
+				Console.WriteLine($"install-test: ok {item.Metadata.HookFullName} ({item.Metadata.Type.FullName})");
+			}
+			catch (Exception ex)
+			{
+				stats.InstallFailedHooks++;
+				failures.Add(new VerificationFailure(item.Metadata.DisplayName, "install", Unwrap(ex).Message));
+			}
+			finally
+			{
+				try
+				{
+					PatchHarmony.UnpatchAll(HarmonyId);
+				}
+				catch
+				{
+					// Continue reporting the actual install failure.
+				}
+			}
+		}
+	}
+
+	private static void InstallHookWithDependencies(
+		HookVerificationItem item,
+		Dictionary<string, List<HookVerificationItem>> hookItemsByFullName)
+	{
+		List<HookVerificationItem> installOrder = new();
+		HashSet<HookVerificationItem> visited = new();
+		HashSet<HookVerificationItem> visiting = new();
+		AddPatchInstallOrder(item, hookItemsByFullName, installOrder, visited, visiting);
+
+		foreach (HookVerificationItem patch in installOrder)
+		{
+			PatchHarmony.Patch(
+				patch.TargetMethod,
+				patch.Prefix == null ? null : new HarmonyMethod(patch.Prefix, Priority.VeryHigh),
+				patch.Postfix == null ? null : new HarmonyMethod(patch.Postfix, Priority.VeryHigh),
+				patch.Transpiler == null ? null : new HarmonyMethod(patch.Transpiler, Priority.VeryHigh));
+		}
 	}
 
 	private static void VerifyStagingCompatibilityManifest(HashSet<string> seenHookFullNames, List<VerificationFailure> failures, VerificationStats stats)
@@ -1037,6 +1342,7 @@ internal static class Program
 		Console.WriteLine($"hooks: total={stats.TotalHooks} watched={stats.WatchedHooks} unwatched={stats.UnwatchedHooks} resolved={stats.ResolvedHooks} patched={stats.PatchedHooks} metadataOnly={stats.MetadataOnlyHooks} nonPatch={stats.NonPatchHooks}");
 		Console.WriteLine($"staging-compat: suppressed={stats.SuppressedHooks} shims={stats.ShimHooks} disabled={stats.DisabledHooks} manifestMissingFromHooks={stats.ManifestEntriesNotPresent}");
 		Console.WriteLine($"shim-validation: transpilers={stats.ShimTranspilerChecks} prefixPostfix={stats.ShimPatchChecks}");
+		Console.WriteLine($"install-tests: tested={stats.InstallTestedHooks} passed={stats.InstallPassedHooks} failed={stats.InstallFailedHooks}");
 
 		if (failures.Count == 0)
 		{
@@ -1058,8 +1364,13 @@ internal static class Program
 		bool AllGeneratedHooks,
 		bool StrictNoSuppression,
 		bool VerifyCompatibilityShims,
+		bool InstallCompatibilityHooks,
+		bool InstallAllDynamicHooks,
 		IReadOnlySet<string> AllowedSuppressions,
-		string? DumpHookFullName)
+		string? DumpHookFullName,
+		IReadOnlyList<string> InstallHookRequests,
+		int MaxParallelInstallChecks,
+		string? ChildInstallHookFullName)
 	{
 		public static Options Parse(string[] args)
 		{
@@ -1069,8 +1380,13 @@ internal static class Program
 			bool allGeneratedHooks = true;
 			bool strictNoSuppression = true;
 			bool verifyCompatibilityShims = false;
+			bool installCompatibilityHooks = true;
+			bool installAllDynamicHooks = false;
 			string? allowSuppressionFile = null;
 			string? dumpHookFullName = null;
+			string? childInstallHookFullName = null;
+			int maxParallelInstallChecks = 8;
+			List<string> installHookRequests = new();
 
 			for (int i = 0; i < args.Length; i++)
 			{
@@ -1104,6 +1420,12 @@ internal static class Program
 						verifyCompatibilityShims = true;
 						break;
 
+					case "--requested-only":
+						allGeneratedHooks = false;
+						installCompatibilityHooks = false;
+						verifyCompatibilityShims = false;
+						break;
+
 					case "--strict-no-suppression":
 						strictNoSuppression = true;
 						break;
@@ -1117,8 +1439,37 @@ internal static class Program
 						verifyCompatibilityShims = true;
 						break;
 
+					case "--install-compat-hooks":
+						installCompatibilityHooks = true;
+						break;
+
+					case "--no-install-compat-hooks":
+						installCompatibilityHooks = false;
+						break;
+
+					case "--install-all-dynamic":
+						installAllDynamicHooks = true;
+						break;
+
+					case "--install-hook":
+						installHookRequests.Add(RequireValue(args, ref i, "--install-hook"));
+						break;
+
+					case "--install-hooks-from-log":
+						installHookRequests.AddRange(ReadHookRequestsFromLog(RequireValue(args, ref i, "--install-hooks-from-log")));
+						break;
+
+					case "--max-parallel-install-checks":
+						maxParallelInstallChecks = int.Parse(RequireValue(args, ref i, "--max-parallel-install-checks"));
+						break;
+
 					case "--dump-hook":
 						dumpHookFullName = RequireValue(args, ref i, "--dump-hook");
+						break;
+
+					case "--child-install-hook":
+						childInstallHookFullName = RequireValue(args, ref i, "--child-install-hook");
+						installCompatibilityHooks = false;
 						break;
 
 					default:
@@ -1136,8 +1487,13 @@ internal static class Program
 				allGeneratedHooks,
 				strictNoSuppression,
 				verifyCompatibilityShims,
+				installCompatibilityHooks,
+				installAllDynamicHooks,
 				LoadAllowedSuppressions(allowSuppressionFile),
-				dumpHookFullName);
+				dumpHookFullName,
+				installHookRequests.Distinct(StringComparer.Ordinal).ToArray(),
+				Math.Max(1, maxParallelInstallChecks),
+				childInstallHookFullName);
 		}
 
 		public void Validate()
@@ -1180,7 +1536,26 @@ internal static class Program
 
 		public static void PrintUsage()
 		{
-			Console.WriteLine("Usage: Carbon.StagingHookVerifier --server-root <path> [--carbon-managed <path>] [--hooks-dir <path>] [--all-generated] [--strict-no-suppression] [--allow-suppression-file <path>] [--dump-hook <hook-full-name>]");
+			Console.WriteLine("Usage: Carbon.StagingHookVerifier --server-root <path> [--carbon-managed <path>] [--hooks-dir <path>] [--all-generated] [--requested-only] [--strict-no-suppression] [--allow-suppression-file <path>] [--install-hook <hook>] [--install-hooks-from-log <path>] [--install-all-dynamic] [--max-parallel-install-checks <n>] [--dump-hook <hook-full-name>]");
+		}
+
+		private static IReadOnlyList<string> ReadHookRequestsFromLog(string path)
+		{
+			if (!File.Exists(path))
+			{
+				throw new FileNotFoundException($"Missing hook request log: {path}", path);
+			}
+
+			List<string> hooks = new();
+			foreach (string line in File.ReadLines(path))
+			{
+				foreach (Match match in QuotedHookRequestRegex().Matches(line))
+				{
+					hooks.Add(match.Groups["hook"].Value);
+				}
+			}
+
+			return hooks.Distinct(StringComparer.Ordinal).ToArray();
 		}
 
 		private static IReadOnlySet<string> LoadAllowedSuppressions(string? path)
@@ -1246,6 +1621,15 @@ internal static class Program
 		MethodInfo? Postfix,
 		MethodInfo? Transpiler);
 
+	private sealed record HookVerificationIndex(
+		List<HookVerificationItem> Items,
+		List<HookVerificationItem> PatchItems,
+		Dictionary<string, List<HookVerificationItem>> ByFullName);
+
+	private readonly record struct ChildInstallResult(bool Success, string Message);
+
+	private readonly record struct InstallCheckResult(HookVerificationItem Item, ChildInstallResult Result);
+
 	private sealed class VerificationStats
 	{
 		public int TotalHooks;
@@ -1261,7 +1645,16 @@ internal static class Program
 		public int ManifestEntriesNotPresent;
 		public int ShimTranspilerChecks;
 		public int ShimPatchChecks;
+		public int InstallTestedHooks;
+		public int InstallPassedHooks;
+		public int InstallFailedHooks;
 	}
+
+	[GeneratedRegex(@"(?<name>.+)\[(?<hash>[0-9a-fA-F]{6})\]$", RegexOptions.CultureInvariant)]
+	private static partial Regex HookRequestWithHashRegex();
+
+	[GeneratedRegex(@"(?:hook|for) '?(?<hook>[A-Za-z_][^']*?\[[0-9a-fA-F]{6}\])'?", RegexOptions.CultureInvariant)]
+	private static partial Regex QuotedHookRequestRegex();
 
 	private enum ShimPatchKind
 	{

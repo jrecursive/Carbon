@@ -10,6 +10,11 @@ ALL_GENERATED=1
 STRICT_NO_SUPPRESSION=1
 ALLOW_SUPPRESSION_FILE=""
 VERIFY_COMPAT_SHIMS=0
+INSTALL_COMPAT_HOOKS=1
+INSTALL_ALL_DYNAMIC=0
+INSTALL_HOOKS_FROM_LOG=""
+INSTALL_HOOKS=()
+MAX_PARALLEL_INSTALL_CHECKS="${CARBON_HOOK_VERIFY_PARALLELISM:-8}"
 
 usage() {
   cat <<'USAGE'
@@ -25,10 +30,20 @@ Options:
   --hooks-dir <path>        Hook DLL directory to verify. Defaults to
                             <carbon-managed>/hooks.
   --all-generated           Verify every generated hook in the hook DLLs. This is the default.
+  --requested-only          Verify only hook requests passed through --install-hook or
+                            --install-hooks-from-log.
   --focused-compat          Verify only the legacy staging compatibility shim surface.
   --strict-no-suppression   Fail if generated hooks are suppressed. This is the default.
   --allow-suppression-file  JSON allow-list for explicit generated hook suppression.
   --verify-compat-shims     Also verify legacy staging compatibility shims.
+  --install-compat-hooks    Install-test generated staging compatibility hooks. This is the default.
+  --no-install-compat-hooks Skip staging compatibility hook install tests.
+  --install-hook <hook>     Install-test one generated hook by full name, hook name, or log token.
+  --install-hooks-from-log  Parse hook request/patch failures from a Carbon/current_errors log.
+  --install-all-dynamic     Install-test every generated dynamic hook in child processes.
+  --max-parallel-install-checks <n>
+                            Maximum child install-test processes. Defaults to
+                            $CARBON_HOOK_VERIFY_PARALLELISM or 8.
   -c, --configuration <cfg> Verifier build configuration. Defaults to Release.
   -h, --help                Show this help.
 USAGE
@@ -58,6 +73,12 @@ while [[ $# -gt 0 ]]; do
       VERIFY_COMPAT_SHIMS=1
       shift
       ;;
+    --requested-only)
+      ALL_GENERATED=0
+      INSTALL_COMPAT_HOOKS=0
+      VERIFY_COMPAT_SHIMS=0
+      shift
+      ;;
     --strict-no-suppression)
       STRICT_NO_SUPPRESSION=1
       shift
@@ -70,6 +91,30 @@ while [[ $# -gt 0 ]]; do
     --verify-compat-shims)
       VERIFY_COMPAT_SHIMS=1
       shift
+      ;;
+    --install-compat-hooks)
+      INSTALL_COMPAT_HOOKS=1
+      shift
+      ;;
+    --no-install-compat-hooks)
+      INSTALL_COMPAT_HOOKS=0
+      shift
+      ;;
+    --install-hook)
+      INSTALL_HOOKS+=("${2:?Missing value for $1}")
+      shift 2
+      ;;
+    --install-hooks-from-log)
+      INSTALL_HOOKS_FROM_LOG="${2:?Missing value for $1}"
+      shift 2
+      ;;
+    --install-all-dynamic)
+      INSTALL_ALL_DYNAMIC=1
+      shift
+      ;;
+    --max-parallel-install-checks)
+      MAX_PARALLEL_INSTALL_CHECKS="${2:?Missing value for $1}"
+      shift 2
       ;;
     -c|--configuration)
       CONFIGURATION="${2:?Missing value for $1}"
@@ -139,6 +184,8 @@ RUN_ARGS=(
 
 if [[ "${ALL_GENERATED}" == "1" ]]; then
   RUN_ARGS+=(--all-generated)
+else
+  RUN_ARGS+=(--requested-only)
 fi
 
 if [[ "${STRICT_NO_SUPPRESSION}" == "1" ]]; then
@@ -152,5 +199,25 @@ fi
 if [[ "${VERIFY_COMPAT_SHIMS}" == "1" ]]; then
   RUN_ARGS+=(--verify-compat-shims)
 fi
+
+if [[ "${INSTALL_COMPAT_HOOKS}" == "1" ]]; then
+  RUN_ARGS+=(--install-compat-hooks)
+else
+  RUN_ARGS+=(--no-install-compat-hooks)
+fi
+
+if [[ "${INSTALL_ALL_DYNAMIC}" == "1" ]]; then
+  RUN_ARGS+=(--install-all-dynamic)
+fi
+
+if [[ -n "${INSTALL_HOOKS_FROM_LOG}" ]]; then
+  RUN_ARGS+=(--install-hooks-from-log "${INSTALL_HOOKS_FROM_LOG}")
+fi
+
+for hook in "${INSTALL_HOOKS[@]}"; do
+  RUN_ARGS+=(--install-hook "${hook}")
+done
+
+RUN_ARGS+=(--max-parallel-install-checks "${MAX_PARALLEL_INSTALL_CHECKS}")
 
 dotnet run --no-build --project "${PROJECT}" -c "${CONFIGURATION}" -- "${RUN_ARGS[@]}"
