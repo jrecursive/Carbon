@@ -17,7 +17,6 @@ internal static partial class Helper
 	];
 	public static readonly string[] PatchBlacklist =
 	[
-		"OnPlayerAttack [Projectile] [Patch]"
 	];
 
 	[ThreadStatic] public static Type CurrentField;
