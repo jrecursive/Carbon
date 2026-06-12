@@ -20,7 +20,18 @@ public static class RpcEx
 
 		using (writer)
 		{
-			writer.String(arg1);
+			writer.String(arg1, false);
+			writer.Send(new SendInfo(player.Connection));
+		}
+	}
+
+	public static void SendClientRpc(this BaseEntity entity, BasePlayer player, string funcName, int arg1)
+	{
+		if (!TryStart(entity, player, funcName, out var writer)) return;
+
+		using (writer)
+		{
+			writer.Int32(arg1);
 			writer.Send(new SendInfo(player.Connection));
 		}
 	}
@@ -46,6 +57,51 @@ public static class RpcEx
 			writer.Float(arg1.y);
 			writer.Float(arg1.z);
 			writer.Send(new SendInfo(player.Connection));
+		}
+	}
+
+	public static void SendClientRpcToNetworkGroup(this BaseEntity entity, string funcName)
+	{
+		if (!TryStartNetworkGroup(entity, funcName, out var writer, out var sendInfo)) return;
+
+		using (writer)
+		{
+			writer.Send(sendInfo);
+		}
+	}
+
+	public static void SendClientRpcToNetworkGroup(this BaseEntity entity, string funcName, string arg1)
+	{
+		if (!TryStartNetworkGroup(entity, funcName, out var writer, out var sendInfo)) return;
+
+		using (writer)
+		{
+			writer.String(arg1, false);
+			writer.Send(sendInfo);
+		}
+	}
+
+	public static void SendClientRpcToNetworkGroup(this BaseEntity entity, string funcName, int arg1, NetworkableId arg2)
+	{
+		if (!TryStartNetworkGroup(entity, funcName, out var writer, out var sendInfo)) return;
+
+		using (writer)
+		{
+			writer.Int32(arg1);
+			writer.EntityID(arg2);
+			writer.Send(sendInfo);
+		}
+	}
+
+	public static void SendClientRpcToNetworkGroup(this BaseEntity entity, string funcName, int arg1, ulong arg2)
+	{
+		if (!TryStartNetworkGroup(entity, funcName, out var writer, out var sendInfo)) return;
+
+		using (writer)
+		{
+			writer.Int32(arg1);
+			writer.UInt64(arg2);
+			writer.Send(sendInfo);
 		}
 	}
 
@@ -96,7 +152,29 @@ public static class RpcEx
 		writer.PacketID(Message.Type.RPCMessage);
 		writer.EntityID(entity.net.ID);
 		writer.UInt32(StringPool.Get(funcName));
-		writer.UInt64(0UL);
+		return true;
+	}
+
+	private static bool TryStartNetworkGroup(BaseEntity entity, string funcName, out NetWrite writer, out SendInfo sendInfo)
+	{
+		writer = null;
+		sendInfo = default;
+
+		if (entity?.net?.group?.subscribers == null || string.IsNullOrEmpty(funcName))
+		{
+			return false;
+		}
+
+		writer = Net.sv.StartWrite();
+		if (writer == null)
+		{
+			return false;
+		}
+
+		writer.PacketID(Message.Type.RPCMessage);
+		writer.EntityID(entity.net.ID);
+		writer.UInt32(StringPool.Get(funcName));
+		sendInfo = new SendInfo(entity.net.group.subscribers);
 		return true;
 	}
 }

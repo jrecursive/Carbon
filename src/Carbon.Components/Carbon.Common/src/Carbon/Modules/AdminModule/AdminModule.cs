@@ -146,50 +146,16 @@ public partial class AdminModule : CarbonModule<AdminConfig, AdminData>
 
 		if (!initialized) return;
 
+		Community.Runtime.Core.cmd.AddConsoleCommand("c.adminpanel", this, AdminPanelConsoleCommand,
+			help: "Opens the Carbon Admin panel. Syntax: c.adminpanel [open|close|toggle|reset], or c.adminpanel <player> [open|close|toggle|reset] from RCON.",
+			authLevel: 2, silent: true);
+
 		for(int i = 0; i < ConfigInstance.OpenCommands.Length; i++)
 		{
 			var command = ConfigInstance.OpenCommands[i];
 			var action = new Action<BasePlayer, string, string[]>((player, cmd, args) =>
 			{
-				if (!CanAccess(player))
-				{
-					return;
-				}
-
-				var ap = GetPlayerSession(player);
-
-				if (ap.IsInMenu)
-				{
-					Close(player);
-					return;
-				}
-
-				if (ap.SelectedTab == null)
-				{
-					ap.SelectedTab = Tabs.FirstOrDefault(x => !DataInstance.IsTabHidden(x.Id) && HasAccess(player, x.Access));
-					ap.Clear();
-				}
-				else if(DataInstance.IsTabHidden(ap.SelectedTab.Id) || !HasAccess(player, ap.SelectedTab.Access))
-				{
-					ap.SelectedTab = null;
-				}
-
-				var tab = GetTab(player);
-
-				try
-				{
-					tab?.OnChange?.Invoke(ap, tab);
-				}
-				catch(Exception ex)
-				{
-					Logger.Error($"Failed OnChange callback for tab '{tab?.Name}[{tab?.Id}], falling back to default tab", ex);
-
-					ap.SelectedTab = Tabs.FirstOrDefault(x => HasAccess(player, x.Access));
-					ap.Clear();
-				}
-
-				DrawCursorLocker(player);
-				Draw(player);
+				TryOpenAdminPanel(player, true, out _);
 			});
 
 			Community.Runtime.Core.cmd.AddChatCommand(command, this, action, silent: true);
@@ -203,6 +169,80 @@ public partial class AdminModule : CarbonModule<AdminConfig, AdminData>
 
 		ImageDatabase ??= BaseModule.GetModule<ImageDatabaseModule>();
 		ImageDatabase.Queue(true, DataInstance.BackgroundImage);
+	}
+
+	internal bool TryOpenAdminPanel(BasePlayer player, bool toggle, out string message)
+	{
+		message = "No connected player was provided.";
+
+		if (player == null || !player.IsConnected)
+		{
+			return false;
+		}
+
+		if (!CanAccess(player))
+		{
+			message = $"{player.displayName} ({player.UserIDString}) cannot access the Carbon Admin panel.";
+			return false;
+		}
+
+		var ap = GetPlayerSession(player);
+
+		if (toggle && ap.IsInMenu)
+		{
+			Close(player);
+			message = $"Closed Carbon Admin panel for {player.displayName} ({player.UserIDString}).";
+			return true;
+		}
+
+		PrepareAdminPanelSession(player, ap);
+		DrawCursorLocker(player);
+		Draw(player);
+
+		message = $"Opened Carbon Admin panel for {player.displayName} ({player.UserIDString}).";
+		return true;
+	}
+
+	internal void ResetAdminPanelSession(BasePlayer player)
+	{
+		if (player == null)
+		{
+			return;
+		}
+
+		Close(player);
+
+		var ap = GetPlayerSession(player);
+		ap.Clear();
+		ap.SelectedTab = null;
+		ap.IsInMenu = false;
+	}
+
+	private void PrepareAdminPanelSession(BasePlayer player, PlayerSession ap)
+	{
+		if (ap.SelectedTab == null)
+		{
+			ap.SelectedTab = Tabs.FirstOrDefault(x => !DataInstance.IsTabHidden(x.Id) && HasAccess(player, x.Access));
+			ap.Clear();
+		}
+		else if (DataInstance.IsTabHidden(ap.SelectedTab.Id) || !HasAccess(player, ap.SelectedTab.Access))
+		{
+			ap.SelectedTab = null;
+		}
+
+		var tab = GetTab(player);
+
+		try
+		{
+			tab?.OnChange?.Invoke(ap, tab);
+		}
+		catch (Exception ex)
+		{
+			Logger.Error($"Failed OnChange callback for tab '{tab?.Name}[{tab?.Id}], falling back to default tab", ex);
+
+			ap.SelectedTab = Tabs.FirstOrDefault(x => HasAccess(player, x.Access));
+			ap.Clear();
+		}
 	}
 	public override void OnDisabled(bool initialized)
 	{

@@ -3,6 +3,78 @@ namespace Carbon.Modules;
 public partial class AdminModule
 {
 #if !MINIMAL
+	private const string AdminPanelCommandSyntax = "Syntax: c.adminpanel [open|close|toggle|reset], or c.adminpanel <player> [open|close|toggle|reset] from RCON.";
+
+	[Conditional("!MINIMAL")]
+	private bool AdminPanelConsoleCommand(ConsoleSystem.Arg args)
+	{
+		var caller = args.Player();
+		var target = caller;
+		var action = "toggle";
+
+		if (caller == null)
+		{
+			if (args.Args == null || args.Args.Length == 0)
+			{
+				args.ReplyWith(AdminPanelCommandSyntax);
+				return true;
+			}
+
+			target = FindAdminPanelTarget(args.GetString(0));
+			action = args.GetString(1, action);
+		}
+		else if (args.Args != null && args.Args.Length > 0)
+		{
+			action = args.GetString(0, action);
+		}
+
+		if (target == null || !target.IsConnected)
+		{
+			args.ReplyWith("Could not find a connected player target. " + AdminPanelCommandSyntax);
+			return true;
+		}
+
+		switch ((action ?? string.Empty).ToLowerInvariant())
+		{
+			case "open":
+				TryOpenAdminPanel(target, false, out var openMessage);
+				args.ReplyWith(openMessage);
+				break;
+
+			case "":
+			case "toggle":
+				TryOpenAdminPanel(target, true, out var toggleMessage);
+				args.ReplyWith(toggleMessage);
+				break;
+
+			case "close":
+				Close(target);
+				args.ReplyWith($"Closed Carbon Admin panel for {target.displayName} ({target.UserIDString}).");
+				break;
+
+			case "reset":
+				ResetAdminPanelSession(target);
+				args.ReplyWith($"Reset Carbon Admin panel session for {target.displayName} ({target.UserIDString}).");
+				break;
+
+			default:
+				args.ReplyWith("Unknown action '" + action + "'. " + AdminPanelCommandSyntax);
+				break;
+		}
+
+		return true;
+	}
+
+	private static BasePlayer FindAdminPanelTarget(string query)
+	{
+		if (string.IsNullOrWhiteSpace(query))
+		{
+			return null;
+		}
+
+		return BasePlayer.FindAwakeOrSleeping(query);
+	}
+
 	[Conditional("!MINIMAL")]
 	[ProtectedCommand(PanelId + ".changetab")]
 	private void ChangeTab(ConsoleSystem.Arg args)

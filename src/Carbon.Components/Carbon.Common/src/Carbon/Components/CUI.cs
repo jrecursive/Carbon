@@ -1432,7 +1432,7 @@ public static class CUIStatics
 		return new Pair<string, CuiElement>(id, element);
 	}
 
-	public static readonly uint AddUiString = StringPool.Get("AddUi");
+	public static readonly uint AddUiString = StringPool.Get("AddUI");
 
 	public static void Send(this CuiElementContainer container, BasePlayer player)
 	{
@@ -1444,7 +1444,6 @@ public static class CUIStatics
 		write.PacketID(Message.Type.RPCMessage);
 		write.EntityID(CommunityEntity.ServerInstance.net.ID);
 		write.UInt32(AddUiString);
-		write.UInt64(0UL);
 		write.String(container.ToJson());
 
 		var bytes = new byte[write.Length];
