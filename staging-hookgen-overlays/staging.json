@@ -103,6 +103,55 @@
           "System.Int32"
         ]
       }
+    },
+    {
+      "name": "OnDeepSeaClosed",
+      "reason": "Installed staging DeepSeaManager.CloseDeepSeaAsync iterator state machine type suffix changed.",
+      "set": {
+        "TypeName": "DeepSeaManager/<CloseDeepSeaAsync>d__77"
+      }
+    },
+    {
+      "name": "OnDeepSeaClose",
+      "reason": "Installed staging DeepSeaManager.CloseDeepSeaAsync iterator state machine type suffix changed.",
+      "set": {
+        "TypeName": "DeepSeaManager/<CloseDeepSeaAsync>d__77"
+      }
+    },
+    {
+      "name": "OnDeepSeaOpened",
+      "reason": "Installed staging DeepSeaManager.OpenDeepSeaAsync iterator state machine type suffix changed.",
+      "set": {
+        "TypeName": "DeepSeaManager/<OpenDeepSeaAsync>d__75"
+      }
+    },
+    {
+      "name": "OnDeepSeaOpen",
+      "reason": "Installed staging DeepSeaManager.OpenDeepSeaAsync iterator state machine type suffix changed.",
+      "set": {
+        "TypeName": "DeepSeaManager/<OpenDeepSeaAsync>d__75"
+      }
+    },
+    {
+      "name": "OnFeedbackReported",
+      "reason": "Installed staging BasePlayer.OnFeedbackReport async state machine type suffix changed.",
+      "set": {
+        "TypeName": "BasePlayer/<OnFeedbackReport>d__752"
+      }
+    },
+    {
+      "name": "OnFeedbackReported [patch]",
+      "reason": "Installed staging BasePlayer.OnFeedbackReport async state machine type suffix changed.",
+      "set": {
+        "TypeName": "BasePlayer/<OnFeedbackReport>d__752"
+      }
+    },
+    {
+      "name": "OnPlayerReported",
+      "reason": "Installed staging BasePlayer.OnPlayerReported async state machine type suffix changed.",
+      "set": {
+        "TypeName": "BasePlayer/<OnPlayerReported>d__751"
+      }
     }
   ]
 }

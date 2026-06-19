@@ -116,6 +116,14 @@ internal static class HookPolicies
 		       && hook.Signature.Name == "AssignFinishBonus";
 	}
 
+	public static bool MatchesOnCollectiblePickedupPolicy(HookDef.Data hook)
+	{
+		return hook.HookName == "OnCollectiblePickedup"
+		       && hook.Name == "OnCollectiblePickedup"
+		       && hook.TypeName == "CollectibleEntity"
+		       && hook.Signature.Name == "DoPickup";
+	}
+
 	public static bool MatchesOnItemCraftPolicy(HookDef.Data hook)
 	{
 		return hook.HookName == "OnItemCraft"
@@ -236,6 +244,7 @@ internal static class HookPolicies
 		       || TryGenerateOnDispenserGatheredPolicy(body, hook)
 		       || TryGenerateOnDispenserBonusPolicy(body, hook)
 		       || TryGenerateOnDispenserBonusReceivedPolicy(body, hook)
+		       || TryGenerateOnCollectiblePickedupPolicy(body, hook)
 		       || TryGenerateOnItemCraftPolicy(body, hook)
 		       || TryGenerateOnPlayerAttackProjectileLeavePolicy(body, hook)
 		       || TryGenerateFlameTurretCanBeTargetedLeavePolicy(body, hook)
@@ -625,6 +634,75 @@ internal static class HookPolicies
 		body.AppendLine("insert.Add(new CodeInstruction(OpCodes.Ldarg_1));");
 		body.AppendLine("insert.Add(LoadLocal(4));");
 		body.AppendLine("insert.Add(new CodeInstruction(OpCodes.Call, AccessTools.Method(MethodBase.GetCurrentMethod().DeclaringType, nameof(OnDispenserBonusReceivedCompat))));");
+		body.AppendLine("code.InsertRange(insertIndex, insert);");
+		body.AppendLine("return code.AsEnumerable();");
+		body.AppendLine("}");
+		CloseGeneratedHookBody(body);
+		return true;
+	}
+
+	private static bool TryGenerateOnCollectiblePickedupPolicy(StringBuilder body, HookDef.Data hook)
+	{
+		if (!MatchesOnCollectiblePickedupPolicy(hook))
+		{
+			return false;
+		}
+
+		Helper.Parameters.Add(("self", Tools.TypeByNameEx("CollectibleEntity") ?? typeof(object)));
+		Helper.Parameters.Add(("reciever", Tools.TypeByNameEx("BasePlayer") ?? typeof(object)));
+		Helper.Parameters.Add(("item", Tools.TypeByNameEx("Item") ?? typeof(object)));
+		Helper.ReturnType = typeof(void);
+
+		AppendTranspilerHelpers(body);
+		body.AppendLine("private static void OnCollectiblePickedupCompat(CollectibleEntity collectible, BasePlayer player, Item item) {");
+		body.AppendLine($"HookCaller.CallStaticHook({HookStringPool.GetOrAdd(hook.HookName)}u, collectible, player, item);");
+		body.AppendLine("}");
+		body.AppendLine("private static bool IsCollectibleGiveItemCall(CodeInstruction instruction) {");
+		body.AppendLine("if (instruction.operand is not MethodBase method || method.Name != \"GiveItem\" || method.DeclaringType != typeof(BasePlayer)) return false;");
+		body.AppendLine("ParameterInfo[] parameters = method.GetParameters();");
+		body.AppendLine("return parameters.Length >= 3 && parameters[0].ParameterType == typeof(Item);");
+		body.AppendLine("}");
+		body.AppendLine("private static bool TryGetLoadedLocalIndex(CodeInstruction instruction, out int index) {");
+		body.AppendLine("index = -1;");
+		body.AppendLine("if (instruction.opcode == OpCodes.Ldloc_0) { index = 0; return true; }");
+		body.AppendLine("if (instruction.opcode == OpCodes.Ldloc_1) { index = 1; return true; }");
+		body.AppendLine("if (instruction.opcode == OpCodes.Ldloc_2) { index = 2; return true; }");
+		body.AppendLine("if (instruction.opcode == OpCodes.Ldloc_3) { index = 3; return true; }");
+		body.AppendLine("if (instruction.opcode != OpCodes.Ldloc && instruction.opcode != OpCodes.Ldloc_S) return false;");
+		body.AppendLine("if (instruction.operand is LocalBuilder builder) { index = builder.LocalIndex; return true; }");
+		body.AppendLine("if (instruction.operand is int value) { index = value; return true; }");
+		body.AppendLine("return false;");
+		body.AppendLine("}");
+		body.AppendLine("private static int FindItemLocalNearGiveItem(List<CodeInstruction> code, MethodBase method, int giveItemCall) {");
+		body.AppendLine("IList<LocalVariableInfo> locals = method.GetMethodBody()?.LocalVariables;");
+		body.AppendLine("if (locals == null) return -1;");
+		body.AppendLine("for (int i = giveItemCall - 1; i >= Math.Max(0, giveItemCall - 8); i--) {");
+		body.AppendLine("if (!TryGetLoadedLocalIndex(code[i], out int localIndex)) continue;");
+		body.AppendLine("if (localIndex >= 0 && localIndex < locals.Count && locals[localIndex].LocalType == typeof(Item)) return localIndex;");
+		body.AppendLine("}");
+		body.AppendLine("return -1;");
+		body.AppendLine("}");
+		body.AppendLine("private static int FindGiveItemArgumentStart(List<CodeInstruction> code, int giveItemCall, int itemLocalIndex) {");
+		body.AppendLine("for (int i = giveItemCall - 1; i >= Math.Max(0, giveItemCall - 8); i--) {");
+		body.AppendLine("if (!TryGetLoadedLocalIndex(code[i], out int localIndex) || localIndex != itemLocalIndex) continue;");
+		body.AppendLine("return Math.Max(0, i - 1);");
+		body.AppendLine("}");
+		body.AppendLine("return -1;");
+		body.AppendLine("}");
+		body.AppendLine("public static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> Instructions, ILGenerator Generator, MethodBase Method) {");
+		body.AppendLine("List<CodeInstruction> code = new List<CodeInstruction>(Instructions);");
+		body.AppendLine("int giveItemCall = code.FindIndex(IsCollectibleGiveItemCall);");
+		body.AppendLine("if (giveItemCall < 0) return code.AsEnumerable();");
+		body.AppendLine("int itemLocalIndex = FindItemLocalNearGiveItem(code, Method, giveItemCall);");
+		body.AppendLine("if (itemLocalIndex < 0) return code.AsEnumerable();");
+		body.AppendLine("int insertIndex = FindGiveItemArgumentStart(code, giveItemCall, itemLocalIndex);");
+		body.AppendLine("if (insertIndex < 0 || insertIndex >= code.Count) return code.AsEnumerable();");
+		body.AppendLine("List<CodeInstruction> insert = new List<CodeInstruction>();");
+		body.AppendLine("insert.Add(new CodeInstruction(OpCodes.Ldarg_0));");
+		body.AppendLine("insert.Add(new CodeInstruction(OpCodes.Ldarg_1));");
+		body.AppendLine("insert.Add(LoadLocal(itemLocalIndex));");
+		body.AppendLine("insert.Add(new CodeInstruction(OpCodes.Call, AccessTools.Method(MethodBase.GetCurrentMethod().DeclaringType, nameof(OnCollectiblePickedupCompat))));");
+		body.AppendLine("MoveLabels(code[insertIndex], insert[0]);");
 		body.AppendLine("code.InsertRange(insertIndex, insert);");
 		body.AppendLine("return code.AsEnumerable();");
 		body.AppendLine("}");

@@ -15,7 +15,8 @@ internal sealed partial class Generator(GeneratorOptions options)
 	{
 		"ConsumptionAmountField [AutoTurret]",
 		"SplashThresholdField [SprayCanSpray]",
-		"IOnPlayerChat[patch]"
+		"IOnPlayerChat[patch]",
+		"IOnPlayerChat[patch2]"
 	};
 
 	private readonly HookValidator _validator = new(options.ValidationMode);
