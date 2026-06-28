@@ -157,7 +157,6 @@ public abstract class BridgeServer
 						};
 						socket.OnClose = () =>
 						{
-							listener._subscribedRconClients.Remove(connectionId);
 							listener.clients.Remove(connectionId);
 							if (Connections.TryGetValue(connectionId, out var bridgeConnection))
 							{

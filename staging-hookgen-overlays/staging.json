@@ -136,21 +136,42 @@
       "name": "OnFeedbackReported",
       "reason": "Installed staging BasePlayer.OnFeedbackReport async state machine type suffix changed.",
       "set": {
-        "TypeName": "BasePlayer/<OnFeedbackReport>d__752"
+        "TypeName": "BasePlayer/<OnFeedbackReport>d__774"
       }
     },
     {
       "name": "OnFeedbackReported [patch]",
       "reason": "Installed staging BasePlayer.OnFeedbackReport async state machine type suffix changed.",
       "set": {
-        "TypeName": "BasePlayer/<OnFeedbackReport>d__752"
+        "TypeName": "BasePlayer/<OnFeedbackReport>d__774"
       }
     },
     {
       "name": "OnPlayerReported",
       "reason": "Installed staging BasePlayer.OnPlayerReported async state machine type suffix changed.",
       "set": {
-        "TypeName": "BasePlayer/<OnPlayerReported>d__751"
+        "TypeName": "BasePlayer/<OnPlayerReported>d__773"
+      }
+    },
+    {
+      "name": "OnElevatorCall",
+      "reason": "Installed staging Elevator.CallElevator compiler-generated lambda suffix changed.",
+      "set": {
+        "Signature.Name": "<CallElevator>b__26_0"
+      }
+    },
+    {
+      "name": "OnRconConnection [web]",
+      "reason": "Installed staging Facepunch.Rcon.Listener.Start compiler display class suffix changed.",
+      "set": {
+        "TypeName": "Facepunch.Rcon.Listener/<>c__DisplayClass27_0"
+      }
+    },
+    {
+      "name": "OnRconConnection [web, patch]",
+      "reason": "Installed staging Facepunch.Rcon.Listener.Start compiler display class suffix changed.",
+      "set": {
+        "TypeName": "Facepunch.Rcon.Listener/<>c__DisplayClass27_0"
       }
     }
   ]
