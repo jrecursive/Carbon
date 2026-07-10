@@ -4,14 +4,10 @@
 		<TargetFramework>net10.0</TargetFramework>
 		<ImplicitUsings>enable</ImplicitUsings>
 		<Nullable>enable</Nullable>
-		<DefineConstants>STAGING_HOOK_VERIFIER</DefineConstants>
 	</PropertyGroup>
 
 	<ItemGroup>
 		<PackageReference Include="Lib.Harmony" Version="2.4.2" />
 	</ItemGroup>
 
-	<ItemGroup>
-		<Compile Include="..\..\Carbon\src\Hooks\StagingHookCompatManifest.cs" Link="StagingHookCompatManifest.cs" />
-	</ItemGroup>
 </Project>

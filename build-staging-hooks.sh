@@ -6,6 +6,7 @@ STAGING_ROOT="${CARBON_STAGING_ROOT:-/home/johnm/rust-staging-autoupdate/server}
 MANAGED_DIR="${CARBON_STAGING_MANAGED_PUBLICIZED:-${ROOT}/rust/linux/RustDedicated_Data/Managed}"
 OPJ_SOURCE="${CARBON_HOOKGEN_OPJ_URL:-https://raw.githubusercontent.com/OxideMod/Oxide.Rust/staging/resources/Rust.opj}"
 OVERLAY_PATH="${CARBON_HOOKGEN_OPJ_OVERLAY:-${ROOT}/staging-hookgen-overlays/staging.json}"
+EXPECTED_SKIPS_PATH="${CARBON_HOOKGEN_EXPECTED_SKIPS:-${ROOT}/staging-hookgen-expected-skips.json}"
 OUTPUT_ROOT="${CARBON_HOOKGEN_OUTPUT_ROOT:-${ROOT}/release/.tmp/staging-hookgen}"
 VALIDATION_MODE="${CARBON_HOOKGEN_VALIDATION_MODE:-fail}"
 CONFIGURATION="${CONFIGURATION:-Release}"
@@ -21,6 +22,7 @@ Options:
   --managed <path>           Publicized Rust managed DLL directory.
   --opj <path-or-url>        Rust.opj source. Defaults to Oxide.Rust staging branch.
   --overlay <path>           OPJ overlay JSON. Defaults to staging-hookgen-overlays/staging.json.
+  --expected-skips <path>    Exact expected generator skip list.
   --output-root <path>       Output directory. Defaults to release/.tmp/staging-hookgen.
   --validation-mode <mode>   Generator validation mode. Defaults to fail.
   -c, --configuration <cfg>  Generator build configuration. Defaults to Release.
@@ -44,6 +46,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     --overlay)
       OVERLAY_PATH="${2:?Missing value for $1}"
+      shift 2
+      ;;
+    --expected-skips)
+      EXPECTED_SKIPS_PATH="${2:?Missing value for $1}"
       shift 2
       ;;
     --output-root)
@@ -110,6 +116,7 @@ require_file "${MANAGED_DIR}/Assembly-CSharp.dll" "Assembly-CSharp.dll"
 if [[ -n "${OVERLAY_PATH}" ]]; then
   require_file "${OVERLAY_PATH}" "OPJ overlay"
 fi
+require_file "${EXPECTED_SKIPS_PATH}" "expected hook skip list"
 
 SOURCE_OPJ="${OUTPUT_ROOT}/Rust.source.opj"
 PATCHED_OPJ="${OUTPUT_ROOT}/Rust.patched.opj"
@@ -168,6 +175,12 @@ if [[ -n "${OVERLAY_PATH}" ]]; then
     exit 1
   fi
 
+  if jq -e '.patches[].changes[] | select(.old == .new)' "${PATCH_REPORT}" >/dev/null; then
+    echo "OPJ overlay contains stale no-op patches:" >&2
+    jq '.patches[] | select(any(.changes[]; .old == .new))' "${PATCH_REPORT}" >&2
+    exit 1
+  fi
+
   jq --argfile overlay "${OVERLAY_PATH}" '
     def path_parts($value): $value | split(".");
     reduce ($overlay.patches // [])[] as $patch (.;
@@ -201,6 +214,15 @@ if [[ "${FAILED_COUNT}" != "0" ]]; then
   exit 1
 fi
 
+if ! jq -e --argfile expected "${EXPECTED_SKIPS_PATH}" '
+  ([.skipped[].Name] | sort) == ($expected.skipped | sort)
+' "${SUMMARY_PATH}" >/dev/null; then
+  echo "Generated hook skip set differs from the reviewed allow-list." >&2
+  jq '{actual: ([.skipped[].Name] | sort)}' "${SUMMARY_PATH}" >&2
+  jq '{expected: (.skipped | sort)}' "${EXPECTED_SKIPS_PATH}" >&2
+  exit 1
+fi
+
 jq -n \
   --arg stagingRoot "${STAGING_ROOT}" \
   --arg managedDir "${MANAGED_DIR}" \
@@ -210,6 +232,7 @@ jq -n \
   --arg sourceSha256 "${SOURCE_SHA}" \
   --arg patchedSha256 "${PATCHED_SHA}" \
   --arg overlayPath "${OVERLAY_PATH}" \
+  --arg expectedSkipsPath "${EXPECTED_SKIPS_PATH}" \
   --arg generatedSourceDir "${GENERATED_DIR}" \
   --arg summaryPath "${SUMMARY_PATH}" \
   --arg patchReport "${PATCH_REPORT}" \
@@ -225,6 +248,7 @@ jq -n \
     sourceSha256: $sourceSha256,
     patchedSha256: $patchedSha256,
     overlayPath: $overlayPath,
+    expectedSkipsPath: $expectedSkipsPath,
     generatedSourceDir: $generatedSourceDir,
     summaryPath: $summaryPath,
     patchReport: $patchReport,

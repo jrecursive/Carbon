@@ -82,13 +82,6 @@ public sealed class PatchManager : CarbonBehaviour, IPatchManager, IDisposable
 		_subscribers = new List<Subscription>();
 		_workQueue = new Queue<string>();
 
-#if RUST_STAGING
-		if (IsStagingHookSuppressionEnabled())
-		{
-			StagingRustIlCompat.Install();
-		}
-#endif
-
 		enabled = false;
 
 		if (Community.Runtime.Config.SelfUpdating.HookUpdates)
@@ -117,12 +110,6 @@ public sealed class PatchManager : CarbonBehaviour, IPatchManager, IDisposable
 		_patches.Clear();
 		_staticHooks.Clear();
 		_dynamicHooks.Clear();
-#if RUST_STAGING
-		if (IsStagingHookSuppressionEnabled())
-		{
-			ResetStagingHookCompatSummary();
-		}
-#endif
 
 		foreach (string file in Files)
 		{
@@ -134,13 +121,6 @@ public sealed class PatchManager : CarbonBehaviour, IPatchManager, IDisposable
 
 			LoadHooksFromFile(file);
 		}
-
-#if RUST_STAGING
-		if (IsStagingHookSuppressionEnabled())
-		{
-			LogStagingHookCompatSummary();
-		}
-#endif
 
 		if (_patches.Count > 0)
 		{
@@ -445,13 +425,6 @@ public sealed class PatchManager : CarbonBehaviour, IPatchManager, IDisposable
 		{
 			try
 			{
-#if RUST_STAGING
-				if (IsStagingHookSuppressionEnabled() && ShouldQuarantineStagingHookType(type))
-				{
-					continue;
-				}
-#endif
-
 				HookEx hook = new HookEx(type)
 					?? throw new Exception($"Hook is null, this is a bug");
 
@@ -470,13 +443,6 @@ public sealed class PatchManager : CarbonBehaviour, IPatchManager, IDisposable
 					Logger.Warn($" Attempted to install duplicate hook '{hook}' (from {assembly.Name})");
 					continue;
 				}
-
-#if RUST_STAGING
-				if (IsStagingHookSuppressionEnabled() && ShouldQuarantineStagingHook(hook))
-				{
-					continue;
-				}
-#endif
 
 				if (hook.IsPatch)
 				{
@@ -508,123 +474,6 @@ public sealed class PatchManager : CarbonBehaviour, IPatchManager, IDisposable
 		sw.Stop();
 		return retvar;
 	}
-
-#if RUST_STAGING
-	private readonly HashSet<string> _stagingHookCompatSuppressedHooks = new(StringComparer.Ordinal);
-	private int _stagingHookCompatShimCount;
-	private int _stagingHookCompatDisabledCount;
-
-	private static bool IsStagingHookSuppressionEnabled()
-	{
-		return string.Equals(Environment.GetEnvironmentVariable("CARBON_ALLOW_STAGING_HOOK_SUPPRESSION"), "1", StringComparison.Ordinal);
-	}
-
-	private bool ShouldQuarantineStagingHook(HookEx hook)
-	{
-		if (hook == null)
-		{
-			return false;
-		}
-
-		if (!StagingHookCompatManifest.ShouldSuppressGeneratedHook(hook.HookFullName, out StagingHookCompatEntry entry))
-		{
-			return false;
-		}
-
-		RecordStagingHookCompatSuppression(entry);
-		return true;
-	}
-
-	private bool ShouldQuarantineStagingHookType(TypeInfo type)
-	{
-		if (!TryReadStagingHookMetadata(type, out StagingGeneratedHookMetadata metadata))
-		{
-			return false;
-		}
-
-		if (!StagingHookCompatManifest.ShouldSuppressGeneratedHook(metadata.HookFullName, out StagingHookCompatEntry entry))
-		{
-			return false;
-		}
-
-		RecordStagingHookCompatSuppression(entry);
-		return true;
-	}
-
-	private void ResetStagingHookCompatSummary()
-	{
-		_stagingHookCompatSuppressedHooks.Clear();
-		_stagingHookCompatShimCount = 0;
-		_stagingHookCompatDisabledCount = 0;
-	}
-
-	private void RecordStagingHookCompatSuppression(StagingHookCompatEntry entry)
-	{
-		if (!_stagingHookCompatSuppressedHooks.Add(entry.HookFullName))
-		{
-			return;
-		}
-
-		switch (entry.Action)
-		{
-			case StagingHookCompatAction.Shim:
-				_stagingHookCompatShimCount++;
-				break;
-
-			case StagingHookCompatAction.DisabledObsolete:
-				_stagingHookCompatDisabledCount++;
-				break;
-		}
-	}
-
-	private void LogStagingHookCompatSummary()
-	{
-		int total = _stagingHookCompatShimCount + _stagingHookCompatDisabledCount;
-
-		if (total == 0)
-		{
-			return;
-		}
-
-		Logger.Warn($" Staging hook compatibility suppressed {total} generated hook(s): {_stagingHookCompatShimCount} replaced by compatibility shims, {_stagingHookCompatDisabledCount} disabled as obsolete/incompatible.");
-	}
-
-	private static bool TryReadStagingHookMetadata(TypeInfo type, out StagingGeneratedHookMetadata metadata)
-	{
-		metadata = default;
-
-		CustomAttributeData attribute = type.CustomAttributes.FirstOrDefault(IsPatchAttribute);
-
-		if (attribute == null || attribute.ConstructorArguments.Count < 2)
-		{
-			return false;
-		}
-
-		metadata = new StagingGeneratedHookMetadata(
-			attribute.ConstructorArguments[0].Value as string,
-			attribute.ConstructorArguments[1].Value as string);
-
-		return !string.IsNullOrEmpty(metadata.HookName) && !string.IsNullOrEmpty(metadata.HookFullName);
-	}
-
-	private static bool IsPatchAttribute(CustomAttributeData attribute)
-	{
-		return attribute.AttributeType.FullName == "API.Hooks.HookAttribute+Patch"
-		       || attribute.AttributeType.FullName == "API.Hooks.HookAttribute.Patch";
-	}
-
-	private readonly struct StagingGeneratedHookMetadata
-	{
-		public StagingGeneratedHookMetadata(string hookName, string hookFullName)
-		{
-			HookName = hookName;
-			HookFullName = hookFullName;
-		}
-
-		public string HookName { get; }
-		public string HookFullName { get; }
-	}
-#endif
 
 	private IEnumerable<HookEx> GetHookDependencyTree(HookEx hook)
 	{
@@ -867,13 +716,6 @@ public sealed class PatchManager : CarbonBehaviour, IPatchManager, IDisposable
 		{
 			if (disposing)
 			{
-#if RUST_STAGING
-				if (IsStagingHookSuppressionEnabled())
-				{
-					StagingRustIlCompat.Uninstall();
-				}
-#endif
-
 				foreach (HookEx item in _dynamicHooks) item.Dispose();
 				_dynamicHooks = default;
 

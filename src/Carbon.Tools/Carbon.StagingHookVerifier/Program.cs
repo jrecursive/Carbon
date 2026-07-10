@@ -57,6 +57,14 @@ internal static partial class Program
 				return DumpHookTarget(hooks, options.DumpHookFullName) ? 0 : 1;
 			}
 
+			if (!string.IsNullOrWhiteSpace(options.ChildInstallHookFullName))
+			{
+				options = options with
+				{
+					InstallHookRequests = ExpandHookDependencyRequests(hooks, options.ChildInstallHookFullName)
+				};
+			}
+
 			HookVerificationIndex index = BuildHookIndex(hooks, options, failures, stats);
 
 			if (!string.IsNullOrWhiteSpace(options.ChildInstallHookFullName))
@@ -222,6 +230,40 @@ internal static partial class Program
 		}
 
 		return new HookVerificationIndex(hookItems, patchItems, hookItemsByFullName);
+	}
+
+	private static IReadOnlyList<string> ExpandHookDependencyRequests(
+		IReadOnlyList<HookMetadata> hooks,
+		string requestedHookFullName)
+	{
+		HashSet<string> requested = new(StringComparer.Ordinal);
+		Queue<string> pending = new();
+		pending.Enqueue(requestedHookFullName);
+
+		while (pending.Count > 0)
+		{
+			string request = pending.Dequeue();
+			if (!requested.Add(request))
+			{
+				continue;
+			}
+
+			foreach (HookMetadata metadata in hooks.Where(metadata =>
+				         string.Equals(metadata.HookFullName, request, StringComparison.Ordinal) ||
+				         string.Equals(metadata.HookName, request, StringComparison.Ordinal)))
+			{
+				requested.Add(metadata.HookFullName);
+				foreach (string dependency in metadata.Dependencies)
+				{
+					if (!string.IsNullOrWhiteSpace(dependency) && !requested.Contains(dependency))
+					{
+						pending.Enqueue(dependency);
+					}
+				}
+			}
+		}
+
+		return requested.OrderBy(value => value, StringComparer.Ordinal).ToArray();
 	}
 
 	private static void VerifyPatchItems(
@@ -394,28 +436,25 @@ internal static partial class Program
 
 	private static List<InstallCheckResult> RunChildInstallHooks(IReadOnlyList<HookVerificationItem> items, Options options)
 	{
-		using SemaphoreSlim semaphore = new(Math.Max(1, options.MaxParallelInstallChecks));
-		Task<InstallCheckResult>[] tasks = items
-			.Select(item => Task.Run(() =>
+		InstallCheckResult[] results = new InstallCheckResult[items.Count];
+		Parallel.For(
+			0,
+			items.Count,
+			new ParallelOptions { MaxDegreeOfParallelism = Math.Max(1, options.MaxParallelInstallChecks) },
+			index =>
 			{
-				semaphore.Wait();
+				HookVerificationItem item = items[index];
 				try
 				{
-					return new InstallCheckResult(item, RunChildInstallHook(item.Metadata.HookFullName, options));
+					results[index] = new InstallCheckResult(item, RunChildInstallHook(item.Metadata.HookFullName, options));
 				}
 				catch (Exception ex)
 				{
-					return new InstallCheckResult(item, new ChildInstallResult(false, ex.Message));
+					results[index] = new InstallCheckResult(item, new ChildInstallResult(false, ex.Message));
 				}
-				finally
-				{
-					semaphore.Release();
-				}
-			}))
-			.ToArray();
+			});
 
-		Task.WaitAll(tasks);
-		return tasks.Select(task => task.GetAwaiter().GetResult()).ToList();
+		return results.ToList();
 	}
 
 	private static bool TryResolveInstallRequest(
@@ -1469,7 +1508,9 @@ internal static partial class Program
 
 					case "--child-install-hook":
 						childInstallHookFullName = RequireValue(args, ref i, "--child-install-hook");
+						allGeneratedHooks = false;
 						installCompatibilityHooks = false;
+						installHookRequests.Add(childInstallHookFullName);
 						break;
 
 					default:
