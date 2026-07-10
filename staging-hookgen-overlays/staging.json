@@ -1,15 +1,6 @@
 {
   "patches": [
     {
-      "name": "OnPlayerVoice",
-      "reason": "Installed staging BasePlayer.OnReceivedVoice now takes ReadOnlySpan<byte> instead of byte[].",
-      "set": {
-        "Signature.Parameters": [
-          "System.ReadOnlySpan<System.Byte>"
-        ]
-      }
-    },
-    {
       "name": "OnInterferenceUpdate",
       "reason": "Installed staging AutoTurret.RecalculateInterference returns bool.",
       "set": {
@@ -73,35 +64,45 @@
       }
     },
     {
-      "name": "OnItemCraft",
-      "reason": "Installed staging ItemCrafter.CraftItem has an added final int argument.",
+      "name": "OnApartmentRoomCheckedout",
+      "reason": "Installed staging ApartmentBuilding.TryCheckout returns bool.",
       "set": {
-        "Signature.Parameters": [
-          "ItemBlueprint",
-          "BasePlayer",
-          "ProtoBuf.Item/InstanceData",
-          "System.Int32",
-          "System.Int32",
-          "Item",
-          "System.Boolean",
-          "System.Int32"
-        ]
+        "Signature.ReturnType": "System.Boolean"
       }
     },
     {
-      "name": "FixItemKeyId [patch]",
-      "reason": "Installed staging ItemCrafter.CraftItem has an added final int argument.",
+      "name": "OnApartmentRoomCheckout",
+      "reason": "Installed staging ApartmentBuilding.TryCheckout returns bool.",
       "set": {
-        "Signature.Parameters": [
-          "ItemBlueprint",
-          "BasePlayer",
-          "ProtoBuf.Item/InstanceData",
-          "System.Int32",
-          "System.Int32",
-          "Item",
-          "System.Boolean",
-          "System.Int32"
-        ]
+        "Signature.ReturnType": "System.Boolean"
+      }
+    },
+    {
+      "name": "OnPlayerMetabolize",
+      "reason": "Installed staging PlayerMetabolism.ServerUpdate returns bool.",
+      "set": {
+        "Signature.ReturnType": "System.Boolean"
+      }
+    },
+    {
+      "name": "OnFeedbackReported",
+      "reason": "Installed staging BasePlayer.OnFeedbackReport state-machine suffix changed.",
+      "set": {
+        "TypeName": "BasePlayer/<OnFeedbackReport>d__752"
+      }
+    },
+    {
+      "name": "OnFeedbackReported [patch]",
+      "reason": "Installed staging BasePlayer.OnFeedbackReport state-machine suffix changed.",
+      "set": {
+        "TypeName": "BasePlayer/<OnFeedbackReport>d__752"
+      }
+    },
+    {
+      "name": "OnPlayerReported",
+      "reason": "Installed staging BasePlayer.OnPlayerReported state-machine suffix changed.",
+      "set": {
+        "TypeName": "BasePlayer/<OnPlayerReported>d__751"
       }
     }
   ]

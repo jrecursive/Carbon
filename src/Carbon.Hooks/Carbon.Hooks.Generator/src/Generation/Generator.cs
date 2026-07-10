@@ -13,9 +13,39 @@ internal sealed partial class Generator(GeneratorOptions options)
 {
 	private static readonly HashSet<string> LocalBlacklist = new(StringComparer.Ordinal)
 	{
+		"CanCatchFish",
+		"CanPurchaseItem",
 		"ConsumptionAmountField [AutoTurret]",
+		"OnBonusItemDropped",
+		"OnBonusItemDropped [patch 1]",
+		"OnBonusItemDropped [patch 2]",
+		"OnBonusItemDropped [patch 3]",
+		"OnBonusItemDropped [patch 4]",
+		"OnBonusItemDropped [patch 5]",
+		"OnCentralizedBanCheck",
+		"OnCorpsePopulate",
+		"OnCounterModeToggle",
+		"OnCounterModeToggle [patch]",
+		"OnCounterTargetChange",
+		"OnCounterTargetChange [patch]",
+		"OnEngineStart",
+		"OnEngineStarted",
+		"OnEngineStartFinished",
+		"OnEngineStop",
+		"OnEngineStopped",
+		"OnFishCatch",
+		"OnFishCaught",
+		"OnIORefCleared",
+		"OnIORefCleared [patch]",
+		"OnMapMarkerAdd",
+		"OnMapMarkerAdd [patch]",
+		"OnMapMarkerAdded",
+		"OnSaveLoad",
+		"OnSleepingBagDestroy",
+		"OnSleepingBagDestroyed",
 		"SplashThresholdField [SprayCanSpray]",
-		"IOnPlayerChat[patch]"
+		"IOnPlayerChat[patch]",
+		"IOnPlayerChat[patch2]"
 	};
 
 	private readonly HookValidator _validator = new(options.ValidationMode);
@@ -138,7 +168,7 @@ internal sealed partial class Generator(GeneratorOptions options)
 
 		if (Helper.PatchBlacklist.Contains(hook.Name))
 		{
-			return HookGenerationResult.Failed(workItem.Order, hook, workItem.Action);
+			return HookGenerationResult.Skipped(workItem.Order, hook, workItem.Action, "patch is blacklisted by generator policy");
 		}
 
 		if (string.IsNullOrEmpty(hook.HookCategory))

@@ -8,7 +8,12 @@ The default OPJ input is Oxide.Rust's `staging` branch:
 https://raw.githubusercontent.com/OxideMod/Oxide.Rust/staging/resources/Rust.opj
 ```
 
-The script applies `staging-hookgen-overlays/staging.json` when the upstream OPJ metadata is stale for the installed staging DLLs. It writes the fetched OPJ, patched OPJ, overlay report, generated C# source, generator summary, and manifest under `release/.tmp`.
+The script applies `staging-hookgen-overlays/staging.json` when the upstream OPJ metadata is stale for the installed staging DLLs. Every overlay patch must match exactly one hook and must actually change its original value. It writes the fetched OPJ, patched OPJ, overlay report, generated C# source, generator summary, and manifest under `release/.tmp`.
+
+`staging-hookgen-expected-skips.json` is an exact allowlist for hooks the
+generator intentionally skips. The build fails when the actual skipped hook set
+differs, including when a previously expected skip becomes generatable. Update
+the list only after reviewing the installed Rust IL and the generator result.
 
 ## Usage
 
@@ -25,6 +30,7 @@ Environment overrides:
 - `CARBON_STAGING_MANAGED_PUBLICIZED`
 - `CARBON_HOOKGEN_OPJ_URL`
 - `CARBON_HOOKGEN_OPJ_OVERLAY`
+- `CARBON_HOOKGEN_EXPECTED_SKIPS`
 - `CARBON_HOOKGEN_OUTPUT_ROOT`
 - `CARBON_HOOKGEN_VALIDATION_MODE`
 
