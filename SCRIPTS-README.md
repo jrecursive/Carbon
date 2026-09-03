@@ -5,7 +5,7 @@ These scripts keep this checkout owned by `git@github.com:jrecursive/Carbon.git`
 The normal branch for fork work is:
 
 ```text
-jrecursive/rust_beta-staging-pipeline
+jrecursive/rust_beta-staging-minimal-2633
 ```
 
 The official branch used as the reset point is:
@@ -28,7 +28,7 @@ What it does:
 
 - changes `origin` to `git@github.com:jrecursive/Carbon.git`
 - keeps the official repo as `upstream`
-- creates or switches to `jrecursive/rust_beta-staging-pipeline`
+- creates or switches to `jrecursive/rust_beta-staging-minimal-2633`
 - commits any current local changes
 - pushes the branch to the fork
 
@@ -120,7 +120,7 @@ What it does:
 - refuses to run if the working tree has uncommitted changes
 - fetches `origin` and `upstream`
 - creates a timestamped backup branch
-- resets `jrecursive/rust_beta-staging-pipeline` to `upstream/rust_beta/staging`
+- resets `jrecursive/rust_beta-staging-minimal-2633` to `upstream/rust_beta/staging`
 - restores the durable fork pipeline files
 - pushes the refreshed branch to the fork
 
@@ -153,20 +153,9 @@ What it does:
 
 ## Durable Pipeline Files
 
-When the reset scripts rebuild the fork branch, these files are restored from the backup branch:
-
-```text
-carbon-git-common.sh
-fork-init.sh
-save-pipeline-work.sh
-sync-official-staging.sh
-drop-temp-patches.sh
-SCRIPTS-README.md
-install-server-carbon-dll.sh
-upgrade-staging.sh
-tools/build/linux/bootstrap.sh
-tools/build/linux/update.sh
-tools/build/runners/update.cs
-tools/build/win/bootstrap.bat
-tools/build/win/update.bat
-```
+When the reset scripts rebuild the fork branch, they restore the exact
+fork-owned workflow, hook generator, overlay/skip manifest, verifier, and
+documented runtime deviations listed in `CARBON_DURABLE_PATHS` inside
+`carbon-git-common.sh`. Keep that list synchronized with the reviewed diff from
+`upstream/rust_beta/staging`; do not add unchanged upstream files because doing
+so would resurrect stale implementations on a later sync.

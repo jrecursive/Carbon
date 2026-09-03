@@ -128,4 +128,4 @@ mkdir -p "${STAGING_CARBON_MANAGED}"
 cp -a "${BUILD_MANAGED}/." "${STAGING_CARBON_MANAGED}/"
 
 echo "Installed Carbon ${CARBON_BUILD_CONFIGURATION} managed artifacts into ${STAGING_CARBON_MANAGED}"
-echo "Self-update can remain enabled: official Carbon will replace this custom build when ${CARBON_RELEASE_TAG} changes from ${OFFICIAL_STAGING_VERSION}."
+echo "Keep Carbon SelfUpdating.Enabled and SelfUpdating.HookUpdates disabled while this locally qualified fork is installed."

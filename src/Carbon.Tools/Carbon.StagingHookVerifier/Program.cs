@@ -13,6 +13,12 @@ internal static partial class Program
 	private const int HookFlagsStatic = 1;
 	private const int HookFlagsPatch = 2;
 	private const int HookFlagsMetadataOnly = 16;
+	private const int OnPlayerDisconnectedHookId = 72085565;
+	private const string OnPlayerDisconnectedHookName = "OnPlayerDisconnected";
+	private const int OnMarketplaceTerminalPurchaseHookId = unchecked((int)2145652880u);
+	private const string OnMarketplaceTerminalPurchaseHookName = "OnMarketplaceTerminalPurchase";
+	private const int OnLoseConditionHookId = unchecked((int)2025192851u);
+	private const string OnLoseConditionHookName = "OnLoseCondition";
 	private const string HarmonyId = "carbon.staging.hook.verifier";
 
 	private static readonly List<string> AssemblySearchPaths = new();
@@ -73,6 +79,7 @@ internal static partial class Program
 			}
 			else
 			{
+				VerifyRequiredGeneratedHookSemantics(hooks, failures, stats);
 				VerifyPatchItems(index.PatchItems, index.ByFullName, failures, stats);
 				VerifyRequestedInstallHooks(index, options, failures, stats);
 			}
@@ -656,6 +663,644 @@ internal static partial class Program
 		VerifyStagingRustIlCompat(failures, stats);
 	}
 
+	private static void VerifyRequiredGeneratedHookSemantics(
+		IReadOnlyList<HookMetadata> hooks,
+		List<VerificationFailure> failures,
+		VerificationStats stats)
+	{
+		VerifyOnPlayerDisconnectedSemantics(hooks, failures, stats);
+		VerifyMarketplaceTerminalPurchaseSemantics(hooks, failures, stats);
+		VerifyOnLoseConditionSemantics(failures, stats);
+	}
+
+	private static void VerifyOnPlayerDisconnectedSemantics(
+		IReadOnlyList<HookMetadata> hooks,
+		List<VerificationFailure> failures,
+		VerificationStats stats)
+	{
+		List<HookMetadata> candidates = hooks
+			.Where(metadata =>
+				string.Equals(metadata.HookFullName, OnPlayerDisconnectedHookName, StringComparison.Ordinal)
+				&& string.Equals(metadata.Target, "ServerMgr", StringComparison.Ordinal)
+				&& string.Equals(metadata.Method, "OnDisconnected", StringComparison.Ordinal))
+			.ToList();
+
+		if (candidates.Count != 1)
+		{
+			failures.Add(new VerificationFailure(
+				OnPlayerDisconnectedHookName,
+				"semantic",
+				$"Expected exactly one generated ServerMgr.OnDisconnected hook, but found {candidates.Count}. " +
+				"The non-null BasePlayer disconnect invariant was not verified."));
+			return;
+		}
+
+		HookMetadata metadata = candidates[0];
+		Type? targetType = FindType(metadata.Target);
+		if (targetType == null)
+		{
+			failures.Add(new VerificationFailure(metadata.DisplayName, "semantic", $"Target type '{metadata.Target}' was not found."));
+			return;
+		}
+
+		MethodBase? targetMethod = ResolveTargetMethod(targetType, metadata);
+		if (targetMethod == null)
+		{
+			failures.Add(new VerificationFailure(
+				metadata.DisplayName,
+				"semantic",
+				$"Target signature '{metadata.Target}.{metadata.Method}({string.Join(", ", metadata.MethodArgs)})' was not found."));
+			return;
+		}
+
+		MethodInfo? transpiler = AccessTools.Method(metadata.Type.AsType(), "Transpiler");
+		if (transpiler == null)
+		{
+			failures.Add(new VerificationFailure(metadata.DisplayName, "semantic", "Generated Transpiler method was not found."));
+			return;
+		}
+
+		try
+		{
+			List<CodeInstruction> original = PatchProcessor.GetOriginalInstructions(targetMethod, out ILGenerator generator);
+			ParameterInfo[] parameters = transpiler.GetParameters();
+			if (parameters.Length != 3)
+			{
+				throw new InvalidOperationException($"Expected a three-parameter generated transpiler, but found {parameters.Length} parameters.");
+			}
+
+			object? result = transpiler.Invoke(null, new object?[] { original, generator, targetMethod });
+			if (result is not IEnumerable<CodeInstruction> rewritten)
+			{
+				throw new InvalidOperationException("Generated transpiler did not return IL instructions.");
+			}
+
+			VerifyOnPlayerDisconnectedControlFlow(rewritten.ToList());
+			stats.SemanticChecks++;
+		}
+		catch (Exception ex)
+		{
+			failures.Add(new VerificationFailure(metadata.DisplayName, "semantic", Unwrap(ex).Message));
+		}
+	}
+
+	private static void VerifyMarketplaceTerminalPurchaseSemantics(
+		IReadOnlyList<HookMetadata> hooks,
+		List<VerificationFailure> failures,
+		VerificationStats stats)
+	{
+		List<HookMetadata> candidates = hooks
+			.Where(metadata =>
+				string.Equals(metadata.HookFullName, OnMarketplaceTerminalPurchaseHookName, StringComparison.Ordinal)
+				&& string.Equals(metadata.Target, "MarketTerminal", StringComparison.Ordinal)
+				&& string.Equals(metadata.Method, "Server_Purchase", StringComparison.Ordinal))
+			.ToList();
+
+		if (candidates.Count != 1)
+		{
+			failures.Add(new VerificationFailure(
+				OnMarketplaceTerminalPurchaseHookName,
+				"semantic",
+				$"Expected exactly one MarketTerminal.Server_Purchase hook, but found {candidates.Count}."));
+			return;
+		}
+
+		HookMetadata metadata = candidates[0];
+		Type? targetType = FindType(metadata.Target);
+		MethodBase? targetMethod = targetType == null ? null : ResolveTargetMethod(targetType, metadata);
+		MethodInfo? transpiler = AccessTools.Method(metadata.Type.AsType(), "Transpiler");
+		if (targetMethod == null || transpiler == null)
+		{
+			failures.Add(new VerificationFailure(
+				metadata.DisplayName,
+				"semantic",
+				"Marketplace target or transpiler could not be resolved."));
+			return;
+		}
+
+		try
+		{
+			List<CodeInstruction> original = PatchProcessor.GetOriginalInstructions(targetMethod, out ILGenerator generator);
+			object? result = transpiler.Invoke(null, new object?[] { original, generator, targetMethod });
+			if (result is not IEnumerable<CodeInstruction> rewritten)
+			{
+				throw new InvalidOperationException("Marketplace transpiler did not return IL instructions.");
+			}
+
+			VerifyMarketplaceTerminalPurchaseControlFlow(rewritten.ToList(), targetMethod);
+			stats.SemanticChecks++;
+		}
+		catch (Exception ex)
+		{
+			failures.Add(new VerificationFailure(metadata.DisplayName, "semantic", Unwrap(ex).Message));
+		}
+	}
+
+	private static void VerifyMarketplaceTerminalPurchaseControlFlow(
+		IReadOnlyList<CodeInstruction> instructions,
+		MethodBase targetMethod)
+	{
+		List<int> hookCalls = FindHookDispatches(instructions, OnMarketplaceTerminalPurchaseHookId);
+		if (hookCalls.Count != 1)
+		{
+			throw new InvalidOperationException(
+				$"Expected one marketplace hook dispatch for ID {unchecked((uint)OnMarketplaceTerminalPurchaseHookId)}, found {hookCalls.Count}.");
+		}
+
+		int hookCallIndex = hookCalls[0];
+		if (hookCallIndex < 9 || instructions[hookCallIndex].operand is not MethodInfo hookMethod)
+		{
+			throw new InvalidOperationException("Marketplace hook dispatch shape is incomplete.");
+		}
+
+		ParameterInfo[] hookParameters = hookMethod.GetParameters();
+		if (hookMethod.ReturnType != typeof(object)
+		    || hookParameters.Length != 6
+		    || hookParameters[0].ParameterType != typeof(uint)
+		    || hookParameters.Skip(1).Any(parameter => parameter.ParameterType != typeof(object)))
+		{
+			throw new InvalidOperationException(
+				"Marketplace hook must call HookCaller.CallStaticHook(uint, object, object, object, object, object).");
+		}
+
+		MethodBody body = targetMethod.GetMethodBody()
+			?? throw new InvalidOperationException("Marketplace target has no method body.");
+		int vendingLocal = GetLoadedLocalIndex(instructions[hookCallIndex - 7]);
+		int sellOrderLocal = GetLoadedLocalIndex(instructions[hookCallIndex - 4]);
+		int amountLocal = GetLoadedLocalIndex(instructions[hookCallIndex - 2]);
+		if (vendingLocal < 0 || sellOrderLocal < 0 || amountLocal < 0
+		    || body.LocalVariables[vendingLocal].LocalType.FullName != "VendingMachine"
+		    || body.LocalVariables[sellOrderLocal].LocalType != typeof(int)
+		    || body.LocalVariables[amountLocal].LocalType != typeof(int)
+		    || instructions[hookCallIndex - 8].opcode != OpCodes.Ldarg_0
+		    || instructions[hookCallIndex - 6].opcode != OpCodes.Ldarg_1
+		    || instructions[hookCallIndex - 5].operand is not FieldInfo playerField
+		    || playerField.Name != "player"
+		    || instructions[hookCallIndex - 3].opcode != OpCodes.Box
+		    || instructions[hookCallIndex - 1].opcode != OpCodes.Box)
+		{
+			throw new InvalidOperationException(
+				"Marketplace hook arguments are not terminal, VendingMachine, RPC player, sell-order index, and amount.");
+		}
+
+		int eligibilityIndex = FindNextCall(instructions, hookCallIndex, "MarketTerminal", "GetDeliveryEligibleVendingMachines");
+		int powerIndex = FindNextCall(instructions, hookCallIndex, "Marketplace", "Server_CanAcceptOrder");
+		int takeIndex = FindNextCall(instructions, hookCallIndex, "PlayerInventory", "Take");
+		int transactionIndex = FindNextCall(instructions, hookCallIndex, "VendingMachine", "DoTransaction");
+		int activeStoreIndex = FindNextFieldStore(instructions, hookCallIndex, "MarketTerminal", "_transactionActive");
+		if (eligibilityIndex < 0 || powerIndex < 0 || takeIndex < 0 || transactionIndex < 0 || activeStoreIndex < 0)
+		{
+			throw new InvalidOperationException("Marketplace side-effect and guard anchors were not all found after the hook.");
+		}
+
+		int vendingStoreIndex = FindPreviousLocalStore(instructions, hookCallIndex, vendingLocal);
+		int sellOrderStoreIndex = FindPreviousLocalStore(instructions, hookCallIndex, sellOrderLocal);
+		int amountStoreIndex = FindPreviousLocalStore(instructions, hookCallIndex, amountLocal);
+		int validationBranchIndex = FindPreviousConditionalBranch(instructions, hookCallIndex, vendingStoreIndex);
+		if (vendingStoreIndex < 0 || sellOrderStoreIndex < 0 || amountStoreIndex < 0 || validationBranchIndex < 0)
+		{
+			throw new InvalidOperationException(
+				"Marketplace hook does not follow the captured RPC locals and native validation branch.");
+		}
+
+		int branchIndex = NextMeaningfulInstruction(instructions, hookCallIndex);
+		int returnIndex = NextMeaningfulInstruction(instructions, branchIndex);
+		if (branchIndex < 0 || !IsBranchFalse(instructions[branchIndex])
+		    || returnIndex < 0 || instructions[returnIndex].opcode != OpCodes.Ret
+		    || instructions[branchIndex].operand is not Label continueLabel)
+		{
+			throw new InvalidOperationException("Marketplace non-null cancellation is not a direct empty-stack return.");
+		}
+
+		int continueIndex = FindLabelTarget(instructions, continueLabel);
+		if (continueIndex <= returnIndex || continueIndex > eligibilityIndex)
+		{
+			throw new InvalidOperationException(
+				"Marketplace null-result continuation does not resume at the delivery-eligibility prelude.");
+		}
+	}
+
+	private static void VerifyOnLoseConditionSemantics(
+		List<VerificationFailure> failures,
+		VerificationStats stats)
+	{
+		Type? corePlugin = FindType("Carbon.Core.CorePlugin");
+		Type? itemType = FindType("Item");
+		MethodInfo? target = corePlugin == null || itemType == null
+			? null
+			: AccessTools.Method(corePlugin, "IOnLoseCondition", new[] { itemType, typeof(float) });
+		if (target == null)
+		{
+			failures.Add(new VerificationFailure(
+				OnLoseConditionHookName,
+				"semantic",
+				"Carbon.Core.CorePlugin.IOnLoseCondition(Item, float) was not found."));
+			return;
+		}
+
+		try
+		{
+			List<CodeInstruction> instructions = PatchProcessor.GetOriginalInstructions(target, out _);
+			List<int> hookCalls = FindHookDispatches(instructions, OnLoseConditionHookId);
+			if (hookCalls.Count != 1)
+			{
+				throw new InvalidOperationException(
+					$"Expected one OnLoseCondition dispatch for ID {OnLoseConditionHookId}, found {hookCalls.Count}.");
+			}
+
+			int hookCallIndex = hookCalls[0];
+			int copyBackIndex = FindNextArgsFloatRead(instructions, hookCallIndex);
+			int conditionStoreIndex = FindNextCall(instructions, hookCallIndex, "Item", "set_condition");
+			if (copyBackIndex < 0 || conditionStoreIndex < 0 || copyBackIndex >= conditionStoreIndex)
+			{
+				throw new InvalidOperationException(
+					"OnLoseCondition does not copy args[1] back into the amount argument before condition subtraction.");
+			}
+
+			stats.SemanticChecks++;
+		}
+		catch (Exception ex)
+		{
+			failures.Add(new VerificationFailure(OnLoseConditionHookName, "semantic", Unwrap(ex).Message));
+		}
+	}
+
+	private static void VerifyOnPlayerDisconnectedControlFlow(IReadOnlyList<CodeInstruction> instructions)
+	{
+		List<(int CallIndex, int IdIndex)> dispatches = new();
+		for (int i = 0; i < instructions.Count; i++)
+		{
+			if (instructions[i].opcode != OpCodes.Call
+			    || !CallsMethod(instructions[i], "Carbon.HookCaller", "CallStaticHook")
+			    || i < 3
+			    || instructions[i - 3].opcode != OpCodes.Ldc_I4
+			    || instructions[i - 3].operand is not int hookId
+			    || hookId != OnPlayerDisconnectedHookId)
+			{
+				continue;
+			}
+
+			dispatches.Add((i, i - 3));
+		}
+
+		if (dispatches.Count != 1)
+		{
+			throw new InvalidOperationException(
+				$"Expected exactly one CallStaticHook dispatch for hook ID {OnPlayerDisconnectedHookId}, but found {dispatches.Count}.");
+		}
+
+		(int hookCallIndex, int hookIdIndex) = dispatches[0];
+		if (instructions[hookCallIndex].operand is not MethodInfo hookDispatchMethod)
+		{
+			throw new InvalidOperationException("OnPlayerDisconnected hook dispatch operand is not a method.");
+		}
+
+		ParameterInfo[] hookDispatchParameters = hookDispatchMethod.GetParameters();
+		if (hookDispatchMethod.ReturnType != typeof(object)
+		    || hookDispatchParameters.Length != 3
+		    || hookDispatchParameters[0].ParameterType != typeof(uint)
+		    || hookDispatchParameters[1].ParameterType != typeof(object)
+		    || hookDispatchParameters[2].ParameterType != typeof(object))
+		{
+			throw new InvalidOperationException(
+				"OnPlayerDisconnected does not call HookCaller.CallStaticHook(uint, object, object).");
+		}
+
+		List<int> playerDisconnectCalls = Enumerable.Range(0, instructions.Count)
+			.Where(index => CallsMethod(instructions[index], "BasePlayer", "OnDisconnected"))
+			.ToList();
+		if (playerDisconnectCalls.Count != 1)
+		{
+			throw new InvalidOperationException(
+				$"Expected exactly one BasePlayer.OnDisconnected call in rewritten IL, but found {playerDisconnectCalls.Count}.");
+		}
+
+		int playerDisconnectIndex = playerDisconnectCalls[0];
+		if (hookCallIndex >= playerDisconnectIndex)
+		{
+			throw new InvalidOperationException(
+				$"Hook dispatch at IL index {hookCallIndex} must execute before BasePlayer.OnDisconnected at index {playerDisconnectIndex}.");
+		}
+
+		int comparisonIndex = FindPreviousCall(instructions, hookIdIndex, "UnityEngine.Object", "op_Inequality");
+		if (comparisonIndex < 0)
+		{
+			int laterComparisonIndex = FindNextCall(instructions, hookCallIndex, "UnityEngine.Object", "op_Inequality");
+			if (laterComparisonIndex >= 0)
+			{
+				throw new InvalidOperationException(
+					$"Hook dispatch at IL index {hookCallIndex} executes before the BasePlayer null comparison at index {laterComparisonIndex}; " +
+					"the null-player path can invoke OnPlayerDisconnected.");
+			}
+
+			throw new InvalidOperationException(
+				$"No UnityEngine.Object.op_Inequality BasePlayer null comparison was found before hook dispatch at IL index {hookCallIndex}.");
+		}
+
+		int nullIndex = PreviousMeaningfulInstruction(instructions, comparisonIndex);
+		int localIndex = PreviousMeaningfulInstruction(instructions, nullIndex);
+		if (nullIndex < 0 || instructions[nullIndex].opcode != OpCodes.Ldnull
+		    || localIndex < 0 || instructions[localIndex].opcode != OpCodes.Ldloc_0)
+		{
+			throw new InvalidOperationException(
+				$"The null comparison at IL index {comparisonIndex} is not fed by BasePlayer local 0 followed by ldnull.");
+		}
+
+		int branchIndex = NextMeaningfulInstruction(instructions, comparisonIndex);
+		if (branchIndex < 0 || !IsBranchFalse(instructions[branchIndex]))
+		{
+			string actual = branchIndex < 0 ? "<end of method>" : $"{instructions[branchIndex].opcode} at index {branchIndex}";
+			throw new InvalidOperationException(
+				$"Expected brfalse immediately after the BasePlayer null comparison at IL index {comparisonIndex}, but found {actual}.");
+		}
+
+		int fallThroughIndex = NextMeaningfulInstruction(instructions, branchIndex);
+		if (fallThroughIndex != hookIdIndex)
+		{
+			throw new InvalidOperationException(
+				$"Non-null BasePlayer branch begins at IL index {fallThroughIndex}, but hook ID {OnPlayerDisconnectedHookId} is loaded at index {hookIdIndex}. " +
+				"The hook must be the first operation inside the guarded branch.");
+		}
+
+		int hookPlayerLoadIndex = NextMeaningfulInstruction(instructions, hookIdIndex);
+		if (hookPlayerLoadIndex != hookCallIndex - 2 || instructions[hookPlayerLoadIndex].opcode != OpCodes.Ldloc_0)
+		{
+			throw new InvalidOperationException(
+				"Hook dispatch does not load BasePlayer local 0 checked by the native null guard.");
+		}
+
+		int reasonLoadIndex = PreviousMeaningfulInstruction(instructions, hookCallIndex);
+		if (reasonLoadIndex != hookCallIndex - 1 || instructions[reasonLoadIndex].opcode != OpCodes.Ldarg_1)
+		{
+			throw new InvalidOperationException(
+				"Hook dispatch does not pass ServerMgr.OnDisconnected argument 1 as the disconnect reason.");
+		}
+
+		int playerLoadIndex = PreviousMeaningfulInstruction(instructions, playerDisconnectIndex);
+		if (playerLoadIndex < 0 || instructions[playerLoadIndex].opcode != OpCodes.Ldloc_0)
+		{
+			throw new InvalidOperationException(
+				"BasePlayer.OnDisconnected does not consume BasePlayer local 0 checked by the native null guard.");
+		}
+
+		if (instructions[branchIndex].operand is not Label nullTarget)
+		{
+			throw new InvalidOperationException($"Null branch at IL index {branchIndex} has no label target.");
+		}
+
+		int nullTargetIndex = FindLabelTarget(instructions, nullTarget);
+		if (nullTargetIndex < 0)
+		{
+			throw new InvalidOperationException($"Null branch target from IL index {branchIndex} was not found in rewritten instructions.");
+		}
+
+		if (nullTargetIndex <= hookCallIndex || nullTargetIndex <= playerDisconnectIndex)
+		{
+			throw new InvalidOperationException(
+				$"Null BasePlayer branch from IL index {branchIndex} lands at index {nullTargetIndex}; it must bypass both " +
+				$"CallStaticHook at index {hookCallIndex} and BasePlayer.OnDisconnected at index {playerDisconnectIndex}.");
+		}
+
+		for (int i = fallThroughIndex; i < playerDisconnectIndex; i++)
+		{
+			FlowControl flow = instructions[i].opcode.FlowControl;
+			if (flow is FlowControl.Branch or FlowControl.Cond_Branch or FlowControl.Return or FlowControl.Throw)
+			{
+				throw new InvalidOperationException(
+					$"Non-null BasePlayer path is not straight-line from hook dispatch to BasePlayer.OnDisconnected; " +
+					$"unexpected {instructions[i].opcode} at IL index {i}.");
+			}
+		}
+	}
+
+	private static int FindPreviousCall(IReadOnlyList<CodeInstruction> instructions, int beforeIndex, string declaringTypeFullName, string methodName)
+	{
+		for (int i = beforeIndex - 1; i >= 0; i--)
+		{
+			if (CallsMethod(instructions[i], declaringTypeFullName, methodName))
+			{
+				return i;
+			}
+		}
+
+		return -1;
+	}
+
+	private static int FindNextCall(IReadOnlyList<CodeInstruction> instructions, int afterIndex, string declaringTypeFullName, string methodName)
+	{
+		for (int i = afterIndex + 1; i < instructions.Count; i++)
+		{
+			if (CallsMethod(instructions[i], declaringTypeFullName, methodName))
+			{
+				return i;
+			}
+		}
+
+		return -1;
+	}
+
+	private static bool CallsMethod(CodeInstruction instruction, string declaringTypeFullName, string methodName)
+	{
+		return (instruction.opcode == OpCodes.Call || instruction.opcode == OpCodes.Callvirt)
+		       && instruction.operand is MethodBase method
+		       && string.Equals(method.DeclaringType?.FullName, declaringTypeFullName, StringComparison.Ordinal)
+		       && string.Equals(method.Name, methodName, StringComparison.Ordinal);
+	}
+
+	private static List<int> FindHookDispatches(IReadOnlyList<CodeInstruction> instructions, int hookId)
+	{
+		List<int> result = new();
+		for (int i = 0; i < instructions.Count; i++)
+		{
+			if (instructions[i].opcode != OpCodes.Ldc_I4
+			    || instructions[i].operand is not int candidate
+			    || candidate != hookId)
+			{
+				continue;
+			}
+
+			for (int j = i + 1; j < instructions.Count && j <= i + 16; j++)
+			{
+				if (CallsMethod(instructions[j], "Carbon.HookCaller", "CallStaticHook"))
+				{
+					result.Add(j);
+					break;
+				}
+
+				if (instructions[j].opcode.FlowControl is FlowControl.Return or FlowControl.Throw)
+				{
+					break;
+				}
+			}
+		}
+
+		return result;
+	}
+
+	private static int GetLoadedLocalIndex(CodeInstruction instruction)
+	{
+		if (instruction.opcode == OpCodes.Ldloc_0) return 0;
+		if (instruction.opcode == OpCodes.Ldloc_1) return 1;
+		if (instruction.opcode == OpCodes.Ldloc_2) return 2;
+		if (instruction.opcode == OpCodes.Ldloc_3) return 3;
+		if (instruction.opcode != OpCodes.Ldloc && instruction.opcode != OpCodes.Ldloc_S) return -1;
+
+		return instruction.operand switch
+		{
+			LocalBuilder local => local.LocalIndex,
+			LocalVariableInfo local => local.LocalIndex,
+			int index => index,
+			byte index => index,
+			_ => -1
+		};
+	}
+
+	private static int FindNextFieldStore(
+		IReadOnlyList<CodeInstruction> instructions,
+		int afterIndex,
+		string declaringTypeFullName,
+		string fieldName)
+	{
+		for (int i = afterIndex + 1; i < instructions.Count; i++)
+		{
+			if (instructions[i].opcode == OpCodes.Stfld
+			    && instructions[i].operand is FieldInfo field
+			    && string.Equals(field.DeclaringType?.FullName, declaringTypeFullName, StringComparison.Ordinal)
+			    && string.Equals(field.Name, fieldName, StringComparison.Ordinal))
+			{
+				return i;
+			}
+		}
+
+		return -1;
+	}
+
+	private static int FindPreviousLocalStore(
+		IReadOnlyList<CodeInstruction> instructions,
+		int beforeIndex,
+		int localIndex)
+	{
+		for (int i = beforeIndex - 1; i >= 0; i--)
+		{
+			if (GetStoredLocalIndex(instructions[i]) == localIndex)
+			{
+				return i;
+			}
+		}
+
+		return -1;
+	}
+
+	private static int GetStoredLocalIndex(CodeInstruction instruction)
+	{
+		if (instruction.opcode == OpCodes.Stloc_0) return 0;
+		if (instruction.opcode == OpCodes.Stloc_1) return 1;
+		if (instruction.opcode == OpCodes.Stloc_2) return 2;
+		if (instruction.opcode == OpCodes.Stloc_3) return 3;
+		if (instruction.opcode != OpCodes.Stloc && instruction.opcode != OpCodes.Stloc_S) return -1;
+
+		return instruction.operand switch
+		{
+			LocalBuilder local => local.LocalIndex,
+			LocalVariableInfo local => local.LocalIndex,
+			int index => index,
+			byte index => index,
+			_ => -1
+		};
+	}
+
+	private static int FindPreviousConditionalBranch(
+		IReadOnlyList<CodeInstruction> instructions,
+		int beforeIndex,
+		int afterIndex)
+	{
+		for (int i = beforeIndex - 1; i > afterIndex; i--)
+		{
+			if (instructions[i].opcode.FlowControl == FlowControl.Cond_Branch)
+			{
+				return i;
+			}
+		}
+
+		return -1;
+	}
+
+	private static int FindNextArgsFloatRead(
+		IReadOnlyList<CodeInstruction> instructions,
+		int afterIndex)
+	{
+		for (int i = afterIndex + 1; i < instructions.Count; i++)
+		{
+			if (instructions[i].opcode != OpCodes.Ldelem_Ref)
+			{
+				continue;
+			}
+
+			int indexLoad = PreviousMeaningfulInstruction(instructions, i);
+			int unboxIndex = NextMeaningfulInstruction(instructions, i);
+			if (indexLoad >= 0 && IsLoadIntOne(instructions[indexLoad])
+			    && unboxIndex >= 0
+			    && instructions[unboxIndex].opcode == OpCodes.Unbox_Any
+			    && Equals(instructions[unboxIndex].operand, typeof(float)))
+			{
+				return unboxIndex;
+			}
+		}
+
+		return -1;
+	}
+
+	private static bool IsLoadIntOne(CodeInstruction instruction)
+	{
+		return instruction.opcode == OpCodes.Ldc_I4_1
+		       || instruction.opcode == OpCodes.Ldc_I4 && instruction.operand is int value && value == 1
+		       || instruction.opcode == OpCodes.Ldc_I4_S && instruction.operand is sbyte shortValue && shortValue == 1;
+	}
+
+	private static int PreviousMeaningfulInstruction(IReadOnlyList<CodeInstruction> instructions, int beforeIndex)
+	{
+		for (int i = beforeIndex - 1; i >= 0; i--)
+		{
+			if (instructions[i].opcode != OpCodes.Nop)
+			{
+				return i;
+			}
+		}
+
+		return -1;
+	}
+
+	private static int NextMeaningfulInstruction(IReadOnlyList<CodeInstruction> instructions, int afterIndex)
+	{
+		for (int i = afterIndex + 1; i < instructions.Count; i++)
+		{
+			if (instructions[i].opcode != OpCodes.Nop)
+			{
+				return i;
+			}
+		}
+
+		return -1;
+	}
+
+	private static bool IsBranchFalse(CodeInstruction instruction)
+	{
+		return instruction.opcode == OpCodes.Brfalse || instruction.opcode == OpCodes.Brfalse_S;
+	}
+
+	private static int FindLabelTarget(IReadOnlyList<CodeInstruction> instructions, Label target)
+	{
+		for (int i = 0; i < instructions.Count; i++)
+		{
+			if (instructions[i].labels.Contains(target))
+			{
+				return i;
+			}
+		}
+
+		return -1;
+	}
+
 	private static bool DumpHookTarget(List<HookMetadata> hooks, string hookFullName)
 	{
 		HookMetadata metadata = hooks.FirstOrDefault(hook => string.Equals(hook.HookFullName, hookFullName, StringComparison.Ordinal));
@@ -673,6 +1318,14 @@ internal static partial class Program
 		}
 
 		MethodBase? targetMethod = ResolveTargetMethod(targetType, metadata);
+		if (targetMethod == null
+		    && string.Equals(metadata.HookFullName, OnLoseConditionHookName, StringComparison.Ordinal))
+		{
+			Type? itemType = FindType("Item");
+			targetMethod = itemType == null
+				? null
+				: AccessTools.Method(targetType, metadata.Method, new[] { itemType, typeof(float) });
+		}
 		if (targetMethod == null)
 		{
 			Console.Error.WriteLine($"Signature for '{metadata.Target}.{metadata.Method}({string.Join(", ", metadata.MethodArgs)})' was not found.");
@@ -1380,6 +2033,7 @@ internal static partial class Program
 	{
 		Console.WriteLine($"hooks: total={stats.TotalHooks} watched={stats.WatchedHooks} unwatched={stats.UnwatchedHooks} resolved={stats.ResolvedHooks} patched={stats.PatchedHooks} metadataOnly={stats.MetadataOnlyHooks} nonPatch={stats.NonPatchHooks}");
 		Console.WriteLine($"staging-compat: suppressed={stats.SuppressedHooks} shims={stats.ShimHooks} disabled={stats.DisabledHooks} manifestMissingFromHooks={stats.ManifestEntriesNotPresent}");
+		Console.WriteLine($"semantic-validation: requiredGeneratedHooks={stats.SemanticChecks}");
 		Console.WriteLine($"shim-validation: transpilers={stats.ShimTranspilerChecks} prefixPostfix={stats.ShimPatchChecks}");
 		Console.WriteLine($"install-tests: tested={stats.InstallTestedHooks} passed={stats.InstallPassedHooks} failed={stats.InstallFailedHooks}");
 
@@ -1684,6 +2338,7 @@ internal static partial class Program
 		public int ShimHooks;
 		public int DisabledHooks;
 		public int ManifestEntriesNotPresent;
+		public int SemanticChecks;
 		public int ShimTranspilerChecks;
 		public int ShimPatchChecks;
 		public int InstallTestedHooks;

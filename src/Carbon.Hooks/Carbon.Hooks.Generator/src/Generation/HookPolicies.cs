@@ -7,7 +7,7 @@ namespace Carbon.Generation;
 
 internal static class HookPolicies
 {
-	private const string OnClanCreatedKnownMsilHash = "635jwYcCfWiJfWKJFGaT8v7zfRJT0VND5GqMKxQMUVE=";
+	private const string OnClanCreatedKnownMsilHash = "2fryvtABc9jbiXMuMDwBwrurrCfPQRd0jcmtbyO8x/I=";
 	private const string OnClanLogoChangedPatchKnownMsilHash = "KuTX1u22EO8+4GjS+SACsxt4g298bNL2E6omZgUevf8=";
 
 	public static bool MatchesOnClanCreatedAsyncSuccessRetargetPolicy(HookDef.Data hook)

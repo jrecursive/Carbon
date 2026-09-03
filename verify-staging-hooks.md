@@ -10,6 +10,15 @@ This catches the failure classes that otherwise appear during startup:
 - generated Harmony patches/transpilers that produce invalid IL
 - generated dynamic hooks that only fail when a plugin subscribes to them
 - accidental reliance on generated hook suppression
+- `OnPlayerDisconnected` moving outside Rust's native non-null `BasePlayer` branch
+- `OnMarketplaceTerminalPurchase` dispatching with wrong locals or after purchase side effects
+- `OnLoseCondition` failing to copy a plugin-mutated by-ref amount back before subtraction
+
+Required semantic checks run in every normal parent verification, including
+`--requested-only`. They execute transpilers over the installed Rust IL and
+require the disconnect hook to stay in the non-null player branch, the
+marketplace hook to cancel before eligibility/power/transaction work, and the
+durability gateway to apply the value copied back from hook argument two.
 
 The legacy focused compatibility mode is still available with `--focused-compat`, but strict staging upgrades should not use it.
 

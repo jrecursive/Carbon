@@ -1,9 +1,11 @@
 # Staging fork deviations
 
-This branch is rebuilt on top of `upstream/rust_beta/staging`. The installed
-local Rust staging server is the source of truth for managed assemblies. The
-goal is to carry only deterministic build and hook metadata needed while
-official Carbon catches up with Rust staging.
+This branch is rebuilt on top of `upstream/rust_beta/staging`. For the protocol
+2633 qualification it is pinned to Carbon commit
+`dedaa79566283b4c84f84e0c0241381f92265d0d` and installed Rust staging build
+`25110115` (`2633.288.1`). The installed local Rust staging server is the source
+of truth for managed assemblies. The goal is to carry only deterministic build
+and hook metadata needed while official Carbon catches up with Rust staging.
 
 ## Retained deviations
 
@@ -30,6 +32,14 @@ official Carbon catches up with Rust staging.
   hook suppression disabled.
 - The verifier owns its compatibility expectations locally. No staging
   compatibility manifest or IL shim is compiled into the Carbon runtime.
+- `OnMarketplaceTerminalPurchase` uses semantic IL anchors instead of fixed
+  instruction/local indexes. It dispatches after the RPC vending/order inputs
+  are validated and before delivery eligibility, power, fees, or transaction
+  side effects; any non-null hook result cancels the vanilla purchase. The
+  verifier checks this ordering and the hook's exact argument locals.
+- The verifier checks that `CorePlugin.IOnLoseCondition` copies a plugin-mutated
+  by-ref amount back before applying condition loss, and that generated
+  `OnPlayerDisconnected` remains inside Rust's non-null player branch.
 - One generator policy is retained for `CanBeTargeted [FlameTurret]`: the main
   hook emits a stack-safe leave path and its obsolete cleanup dependency emits
   a no-op transpiler. Multiple current plugins subscribe to this canonical hook,
@@ -55,6 +65,9 @@ official Carbon catches up with Rust staging.
   helper heuristics, generic/byref hook policies, and build bootstrap changes
   that canonical Carbon now implements are not carried.
 - Runtime staging hook suppression and compatibility shims are not carried.
+- August-only Recycler, Research, Newtonsoft, Vault, timer, and Carbon core
+  disconnect guards are not carried because canonical staging now owns the
+  corresponding compatibility behavior.
 
 ## Review rule
 

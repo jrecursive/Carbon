@@ -8,6 +8,12 @@ The default OPJ input is Oxide.Rust's `staging` branch:
 https://raw.githubusercontent.com/OxideMod/Oxide.Rust/staging/resources/Rust.opj
 ```
 
+Protocol 2633 pins those source bytes to SHA-256
+`caecfc18b07e958ab63d18819139e47a981af489d37b45c2beaa2f07ede79d25`.
+The build fails before applying overlays if the remote content drifts. Override
+the expected checksum only together with a reviewed Rust/OPJ update by using
+`--opj-sha256` or `CARBON_HOOKGEN_OPJ_SHA256`.
+
 The script applies `staging-hookgen-overlays/staging.json` when the upstream OPJ metadata is stale for the installed staging DLLs. Every overlay patch must match exactly one hook and must actually change its original value. It writes the fetched OPJ, patched OPJ, overlay report, generated C# source, generator summary, and manifest under `release/.tmp`.
 
 `staging-hookgen-expected-skips.json` is an exact allowlist for hooks the
@@ -21,6 +27,7 @@ the list only after reviewing the installed Rust IL and the generator result.
 ./build-staging-hooks.sh
 ./build-staging-hooks.sh --opj /path/to/Rust.opj
 ./build-staging-hooks.sh --opj https://example.invalid/Rust.opj
+./build-staging-hooks.sh --opj /path/to/Rust.opj --opj-sha256 <sha256>
 ./build-staging-hooks.sh --output-root release/.tmp/ReleaseUnix/staging-hookgen
 ```
 
@@ -29,6 +36,7 @@ Environment overrides:
 - `CARBON_STAGING_ROOT`
 - `CARBON_STAGING_MANAGED_PUBLICIZED`
 - `CARBON_HOOKGEN_OPJ_URL`
+- `CARBON_HOOKGEN_OPJ_SHA256`
 - `CARBON_HOOKGEN_OPJ_OVERLAY`
 - `CARBON_HOOKGEN_EXPECTED_SKIPS`
 - `CARBON_HOOKGEN_OUTPUT_ROOT`

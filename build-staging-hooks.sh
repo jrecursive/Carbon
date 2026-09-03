@@ -5,6 +5,7 @@ ROOT="$(cd -- "$(dirname "$0")" >/dev/null 2>&1 && pwd -P)"
 STAGING_ROOT="${CARBON_STAGING_ROOT:-/home/johnm/rust-staging-autoupdate/server}"
 MANAGED_DIR="${CARBON_STAGING_MANAGED_PUBLICIZED:-${ROOT}/rust/linux/RustDedicated_Data/Managed}"
 OPJ_SOURCE="${CARBON_HOOKGEN_OPJ_URL:-https://raw.githubusercontent.com/OxideMod/Oxide.Rust/staging/resources/Rust.opj}"
+EXPECTED_OPJ_SHA256="${CARBON_HOOKGEN_OPJ_SHA256:-caecfc18b07e958ab63d18819139e47a981af489d37b45c2beaa2f07ede79d25}"
 OVERLAY_PATH="${CARBON_HOOKGEN_OPJ_OVERLAY:-${ROOT}/staging-hookgen-overlays/staging.json}"
 EXPECTED_SKIPS_PATH="${CARBON_HOOKGEN_EXPECTED_SKIPS:-${ROOT}/staging-hookgen-expected-skips.json}"
 OUTPUT_ROOT="${CARBON_HOOKGEN_OUTPUT_ROOT:-${ROOT}/release/.tmp/staging-hookgen}"
@@ -21,6 +22,7 @@ Options:
   --server-root <path>       Rust staging server root. Used for manifest metadata.
   --managed <path>           Publicized Rust managed DLL directory.
   --opj <path-or-url>        Rust.opj source. Defaults to Oxide.Rust staging branch.
+  --opj-sha256 <sha256>      Required source checksum for the frozen OPJ bytes.
   --overlay <path>           OPJ overlay JSON. Defaults to staging-hookgen-overlays/staging.json.
   --expected-skips <path>    Exact expected generator skip list.
   --output-root <path>       Output directory. Defaults to release/.tmp/staging-hookgen.
@@ -42,6 +44,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     --opj)
       OPJ_SOURCE="${2:?Missing value for $1}"
+      shift 2
+      ;;
+    --opj-sha256)
+      EXPECTED_OPJ_SHA256="${2:?Missing value for $1}"
       shift 2
       ;;
     --overlay)
@@ -145,6 +151,16 @@ else
 fi
 
 SOURCE_SHA="$(sha256sum "${SOURCE_OPJ}" | awk '{ print $1 }')"
+if [[ ! "${EXPECTED_OPJ_SHA256}" =~ ^[0-9a-f]{64}$ ]]; then
+  echo "Expected OPJ SHA-256 must be 64 lowercase hexadecimal characters: ${EXPECTED_OPJ_SHA256}" >&2
+  exit 2
+fi
+if [[ "${SOURCE_SHA}" != "${EXPECTED_OPJ_SHA256}" ]]; then
+  echo "Rust.opj checksum drifted; refusing mixed hook inputs." >&2
+  echo "Expected: ${EXPECTED_OPJ_SHA256}" >&2
+  echo "Actual:   ${SOURCE_SHA}" >&2
+  exit 1
+fi
 
 if [[ -n "${OVERLAY_PATH}" ]]; then
   jq --argfile overlay "${OVERLAY_PATH}" '
@@ -230,6 +246,7 @@ jq -n \
   --arg sourceOpj "${SOURCE_OPJ}" \
   --arg patchedOpj "${PATCHED_OPJ}" \
   --arg sourceSha256 "${SOURCE_SHA}" \
+  --arg expectedSourceSha256 "${EXPECTED_OPJ_SHA256}" \
   --arg patchedSha256 "${PATCHED_SHA}" \
   --arg overlayPath "${OVERLAY_PATH}" \
   --arg expectedSkipsPath "${EXPECTED_SKIPS_PATH}" \
@@ -246,6 +263,7 @@ jq -n \
     sourceOpj: $sourceOpj,
     patchedOpj: $patchedOpj,
     sourceSha256: $sourceSha256,
+    expectedSourceSha256: $expectedSourceSha256,
     patchedSha256: $patchedSha256,
     overlayPath: $overlayPath,
     expectedSkipsPath: $expectedSkipsPath,
