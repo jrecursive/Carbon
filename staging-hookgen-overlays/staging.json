@@ -83,27 +83,6 @@
       "set": {
         "Signature.ReturnType": "System.Boolean"
       }
-    },
-    {
-      "name": "OnFeedbackReported",
-      "reason": "Installed staging BasePlayer.OnFeedbackReport state-machine suffix changed.",
-      "set": {
-        "TypeName": "BasePlayer/<OnFeedbackReport>d__752"
-      }
-    },
-    {
-      "name": "OnFeedbackReported [patch]",
-      "reason": "Installed staging BasePlayer.OnFeedbackReport state-machine suffix changed.",
-      "set": {
-        "TypeName": "BasePlayer/<OnFeedbackReport>d__752"
-      }
-    },
-    {
-      "name": "OnPlayerReported",
-      "reason": "Installed staging BasePlayer.OnPlayerReported state-machine suffix changed.",
-      "set": {
-        "TypeName": "BasePlayer/<OnPlayerReported>d__751"
-      }
     }
   ]
 }

@@ -62,8 +62,13 @@ public partial class CorePlugin
 
 	private void OnPlayerDisconnected(BasePlayer player, string reason)
 	{
+		if (player == null)
+		{
+			return;
+		}
+
 		// OnUserDisconnected
-		HookCaller.CallStaticHook(649612044, player?.AsIPlayer(), reason);
+		HookCaller.CallStaticHook(649612044, player.AsIPlayer(), reason);
 
 		if (player.IsAdmin && !player.IsOnGround())
 		{

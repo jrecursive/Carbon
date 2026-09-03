@@ -10,6 +10,13 @@ This catches the failure classes that otherwise appear during startup:
 - generated Harmony patches/transpilers that produce invalid IL
 - generated dynamic hooks that only fail when a plugin subscribes to them
 - accidental reliance on generated hook suppression
+- `OnPlayerDisconnected` moving outside Rust's native non-null `BasePlayer` branch
+
+The `OnPlayerDisconnected` semantic check runs in every normal parent verification,
+including `--requested-only`. It executes the generated transpiler over the installed
+`ServerMgr.OnDisconnected` IL and requires the null-player branch to bypass both the
+hook dispatch and `BasePlayer.OnDisconnected`, while the non-null fall-through calls
+hook ID `72085565` immediately before the native player disconnect call.
 
 The legacy focused compatibility mode is still available with `--focused-compat`, but strict staging upgrades should not use it.
 

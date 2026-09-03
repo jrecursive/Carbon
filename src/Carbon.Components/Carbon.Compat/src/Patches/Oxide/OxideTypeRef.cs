@@ -15,6 +15,8 @@ namespace Carbon.Compat.Patches.Oxide;
 
 public class OxideTypeRef : BaseOxidePatch
 {
+    private const string LegacyHashSetConverter = "Newtonsoft.Json.Converters.HashSetConverter";
+
     public static List<string> PluginToBaseHookable = new()
 	{
         "System.Void Oxide.Core.Libraries.Permission::RegisterPermission(System.String, Oxide.Core.Plugins.Plugin)",
@@ -139,7 +141,32 @@ public class OxideTypeRef : BaseOxidePatch
             }
         }
 
-        if (type.Scope is not AssemblyReference aref || !Helpers.IsOxideASM(aref))
+        if (type.Scope is not AssemblyReference aref)
+        {
+	        return;
+        }
+
+        var isOxideReference = Helpers.IsOxideASM(aref);
+        var isNewtonsoftReference = string.Equals(
+            aref.Name.Value,
+            "Newtonsoft.Json",
+            StringComparison.OrdinalIgnoreCase);
+
+        if (type.FullName == LegacyHashSetConverter
+	        && (isOxideReference || isNewtonsoftReference))
+        {
+	        type.Scope = CompatManager.Common.ImportWith(importer);
+	        return;
+        }
+
+        if ((isOxideReference || isNewtonsoftReference)
+            && type.Namespace.StartsWith("Newtonsoft.Json"))
+        {
+            type.Scope = CompatManager.Newtonsoft.ImportWith(importer);
+            return;
+        }
+
+        if (!isOxideReference)
         {
 	        return;
         }
@@ -153,12 +180,6 @@ public class OxideTypeRef : BaseOxidePatch
         if (type.FullName == "Oxide.Core.Plugins.PluginEvent")
         {
 	        type.Namespace = string.Empty;
-        }
-
-        if (type.Namespace.StartsWith("Newtonsoft.Json"))
-        {
-	        type.Scope = CompatManager.Newtonsoft.ImportWith(importer);
-	        return;
         }
 
         if (type.Namespace.StartsWith("ProtoBuf"))

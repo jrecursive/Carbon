@@ -58,6 +58,11 @@ public partial class AdminModule
 	[Conditional("!MINIMAL")]
 	private void OnPlayerDisconnected(BasePlayer player)
 	{
+		if (player == null)
+		{
+			return;
+		}
+
 		Tab.OptionChart.Cache.ClearPlayerViewer(player.userID);
 
 		if (PlayersTab.BlindedPlayers.Contains(player))

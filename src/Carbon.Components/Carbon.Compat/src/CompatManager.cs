@@ -1,4 +1,5 @@
 ﻿using System.Diagnostics;
+using System.Reflection;
 using System.Runtime.CompilerServices;
 using API.Abstracts;
 using API.Assembly;
@@ -8,6 +9,7 @@ using AsmResolver.DotNet.Serialized;
 using Carbon.Compat.Converters;
 using Carbon.Extensions;
 using Facepunch;
+using Newtonsoft.Json;
 using Defines = Carbon.Core.Defines;
 
 [assembly: InternalsVisibleTo("Carbon.Bootstrap")]
@@ -35,13 +37,24 @@ public class CompatManager : CarbonBehaviour, ICompatManager
 
     public static readonly AssemblyReference Common = new AssemblyReference("Carbon.Common", zeroVersion);
 
-    public static readonly AssemblyReference Newtonsoft = new AssemblyReference("Newtonsoft.Json", zeroVersion);
+    public static readonly AssemblyReference Newtonsoft = CreateAssemblyReference(typeof(JsonConvert).Assembly.GetName());
 
     public static readonly AssemblyReference protobuf = new AssemblyReference("protobuf-net", zeroVersion);
 
     public static readonly AssemblyReference protobufCore = new AssemblyReference("protobuf-net.Core", zeroVersion);
 
     public static readonly AssemblyReference wsSharp = new AssemblyReference("websocket-sharp", zeroVersion);
+
+    private static AssemblyReference CreateAssemblyReference(AssemblyName name)
+    {
+	    var reference = new AssemblyReference(
+		    name.Name,
+		    name.Version,
+		    false,
+		    name.GetPublicKeyToken());
+	    reference.Culture = string.IsNullOrEmpty(name.CultureName) ? null : name.CultureName;
+	    return reference;
+    }
 
     private bool ConvertAssembly(ModuleDefinition md, BaseConverter converter, ref byte[] buffer, bool noEntrypoint = false)
     {

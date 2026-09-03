@@ -26,34 +26,26 @@ public partial class Category_Fixes
 				var runtime = AccessTools.PropertyGetter(typeof(Community), nameof(Community.Runtime));
 				var core = AccessTools.PropertyGetter(typeof(Community), nameof(Community.Core));
 				var multiplier = AccessTools.PropertyGetter(typeof(CorePlugin), nameof(CorePlugin.RuntimeResearchDurationMultiplier));
+				var researchDuration = AccessTools.Field(typeof(ResearchTable), "researchDuration");
 
-				var x = 0;
+				var patchedLoads = 0;
 				foreach (CodeInstruction instruction in Instructions)
 				{
-					switch (x)
-					{
-						case 30:
-						{
-							yield return new CodeInstruction(OpCodes.Call, runtime);
-							yield return new CodeInstruction(OpCodes.Callvirt, core);
-							yield return new CodeInstruction(OpCodes.Callvirt, multiplier);
-							yield return new CodeInstruction(OpCodes.Mul);
-							break;
-						}
-
-						case 38:
-						{
-							yield return new CodeInstruction(OpCodes.Call, runtime);
-							yield return new CodeInstruction(OpCodes.Callvirt, core);
-							yield return new CodeInstruction(OpCodes.Callvirt, multiplier);
-							yield return new CodeInstruction(OpCodes.Mul);
-							break;
-						}
-					}
-
 					yield return instruction;
 
-					x++;
+					if (instruction.opcode == OpCodes.Ldfld && Equals(instruction.operand, researchDuration))
+					{
+						patchedLoads++;
+						yield return new CodeInstruction(OpCodes.Call, runtime);
+						yield return new CodeInstruction(OpCodes.Callvirt, core);
+						yield return new CodeInstruction(OpCodes.Callvirt, multiplier);
+						yield return new CodeInstruction(OpCodes.Mul);
+					}
+				}
+
+				if (patchedLoads != 2)
+				{
+					throw new System.InvalidOperationException($"Expected two ResearchTable.researchDuration loads, found {patchedLoads}.");
 				}
 			}
 		}
