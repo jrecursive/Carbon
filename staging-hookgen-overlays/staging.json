@@ -144,6 +144,187 @@
           }
         ]
       }
+    },
+    {
+      "name": "OnConstructionPlace",
+      "reason": "Installed staging extracts construction initialization/spawn into SpawnConstruction; veto the validated unspawned entity in DoPlacement before entering that helper, preserving API args and cleanup. Recast optional DecayEntity cleanup directly instead of referencing a removed native/synthetic local slot.",
+      "set": {
+        "InjectionIndex": 18,
+        "Instructions": [
+          {
+            "OpCode": "ldstr",
+            "OpType": "String",
+            "Operand": "OnConstructionPlace"
+          },
+          {
+            "OpCode": "ldloc_1",
+            "OpType": "None"
+          },
+          {
+            "OpCode": "ldarg_2",
+            "OpType": "None"
+          },
+          {
+            "OpCode": "ldarg_1",
+            "OpType": "None"
+          },
+          {
+            "OpCode": "box",
+            "OpType": "Type",
+            "Operand": "Assembly-CSharp|Construction/Target"
+          },
+          {
+            "OpCode": "ldloc_0",
+            "OpType": "None"
+          },
+          {
+            "OpCode": "call",
+            "OpType": "Method",
+            "Operand": "Oxide.Core|Oxide.Core.Interface|CallHook(System.String,System.Object,System.Object,System.Object,System.Object)"
+          },
+          {
+            "OpCode": "brfalse_s",
+            "OpType": "Instruction",
+            "Operand": 18
+          },
+          {
+            "OpCode": "ldloc_1",
+            "OpType": "None"
+          },
+          {
+            "OpCode": "call",
+            "OpType": "Method",
+            "Operand": "Assembly-CSharp|BaseNetworkableEx|IsValid(Assembly-CSharp|BaseNetworkable)"
+          },
+          {
+            "OpCode": "brfalse_s",
+            "OpType": "Instruction",
+            "Operand": 14,
+            "ReferencesNewInstruction": true
+          },
+          {
+            "OpCode": "ldloc_1",
+            "OpType": "None"
+          },
+          {
+            "OpCode": "callvirt",
+            "OpType": "Method",
+            "Operand": "Assembly-CSharp|BaseNetworkable|KillMessage"
+          },
+          {
+            "OpCode": "br_s",
+            "OpType": "Instruction",
+            "Operand": 26,
+            "ReferencesNewInstruction": true
+          },
+          {
+            "OpCode": "ldloc_s",
+            "OpType": "VariableIndex",
+            "Operand": "1"
+          },
+          {
+            "OpCode": "isinst",
+            "OpType": "Type",
+            "Operand": "Assembly-CSharp|DecayEntity"
+          },
+          {
+            "OpCode": "call",
+            "OpType": "Method",
+            "Operand": "UnityEngine.CoreModule|UnityEngine.Object|op_Implicit"
+          },
+          {
+            "OpCode": "brfalse_s",
+            "OpType": "Instruction",
+            "Operand": 22,
+            "ReferencesNewInstruction": true
+          },
+          {
+            "OpCode": "ldloc_1",
+            "OpType": "None"
+          },
+          {
+            "OpCode": "isinst",
+            "OpType": "Type",
+            "Operand": "Assembly-CSharp|DecayEntity"
+          },
+          {
+            "OpCode": "callvirt",
+            "OpType": "Method",
+            "Operand": "Assembly-CSharp|DecayEntity|DoServerDestroy"
+          },
+          {
+            "OpCode": "br_s",
+            "OpType": "Instruction",
+            "Operand": 22,
+            "ReferencesNewInstruction": true
+          },
+          {
+            "OpCode": "ldloc_1",
+            "OpType": "None"
+          },
+          {
+            "OpCode": "callvirt",
+            "OpType": "Method",
+            "Operand": "Assembly-CSharp|BaseNetworkable|TerminateOnServer"
+          },
+          {
+            "OpCode": "ldloc_1",
+            "OpType": "None"
+          },
+          {
+            "OpCode": "callvirt",
+            "OpType": "Method",
+            "Operand": "Assembly-CSharp|BaseNetworkable|EntityDestroy"
+          },
+          {
+            "OpCode": "ldnull",
+            "OpType": "None"
+          },
+          {
+            "OpCode": "ret",
+            "OpType": "None"
+          }
+        ]
+      }
+    },
+    {
+      "name": "LimitNetworkingNoEffect [patch 3]",
+      "reason": "Anchor limited-initiator headshot FX suppression at the native effect argument block after safe-zone additions and the actual six-instruction Carbon base hook; preserve stats and all other damage behavior.",
+      "set": {
+        "InjectionIndex": 247,
+        "Instructions": [
+          {
+            "OpCode": "ldloc_s",
+            "OpType": "Variable",
+            "Operand": 8
+          },
+          {
+            "OpCode": "call",
+            "OpType": "Method",
+            "Operand": "UnityEngine.CoreModule|UnityEngine.Object|op_Implicit"
+          },
+          {
+            "OpCode": "brfalse_s",
+            "OpType": "Instruction",
+            "Operand": 247
+          },
+          {
+            "OpCode": "ldloc_s",
+            "OpType": "Variable",
+            "Operand": 8
+          },
+          {
+            "OpCode": "callvirt",
+            "OpType": "Method",
+            "Operand": "Assembly-CSharp|BaseNetworkable|get_limitNetworking"
+          },
+          {
+            "OpCode": "brtrue_s",
+            "OpType": "Instruction",
+            "Operand": 269
+          }
+        ]
+      }
     }
   ]
 }

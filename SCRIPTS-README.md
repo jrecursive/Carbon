@@ -169,3 +169,9 @@ so would resurrect stale implementations on a later sync.
   hooks and rejects broken cleanup/password/registration control flow against
   raw and publicized assemblies; see
   [test-staging-rcon-hooks.md](test-staging-rcon-hooks.md).
+- `./test-staging-limit-networking.sh`: proves all three limited-networking FX
+  guards preserve native behavior outside the selected visual effect; see
+  [test-staging-limit-networking.md](test-staging-limit-networking.md).
+- `./test-staging-construction-hooks.sh`: proves pre-spawn construction veto,
+  callback arguments and cleanup through the extracted native placement helper;
+  see [test-staging-construction-hooks.md](test-staging-construction-hooks.md).

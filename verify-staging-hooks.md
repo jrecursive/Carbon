@@ -15,6 +15,7 @@ This catches the failure classes that otherwise appear during startup:
 - `OnLoseCondition` failing to copy a plugin-mutated by-ref amount back before subtraction
 - explosive notifications passing a prediction ID or an uninitialized entity, or running before spawn/after item consumption
 - `OnEntityBuilt` escaping its successful placement branch or passing the wrong GameObject
+- `OnConstructionPlace` losing the pre-spawn veto, exact callback arguments or native cleanup paths
 
 Required semantic checks run in every normal parent verification, including
 `--requested-only`. They execute transpilers over the installed Rust IL and
@@ -27,6 +28,11 @@ pre-consumption notification boundary. Construction checks preserve the existing
 Planner/GameObject event after native spawn and before deployment/payment work.
 Run `./test-staging-spawn-hooks.sh` for installed-IL positive and negative
 regressions of these semantic checks; see `test-staging-spawn-hooks.md`.
+Construction veto checks preserve null-versus-nonnull callback semantics and prove
+cleanup/null-return before native helper execution. Run
+`./test-staging-construction-hooks.sh` against freshly generated source for CLR
+installation, mutation tests and executed veto-path cases. Its sibling document
+records the current refactor's earlier placement relative to skin/health setup.
 
 The legacy focused compatibility mode is still available with `--focused-compat`, but strict staging upgrades should not use it.
 
@@ -64,3 +70,9 @@ structural pass once; each child indexes only its requested hook before install,
 so isolation does not repeat all signature resolution hundreds of times. Child
 processes use a bounded `Parallel.For`, avoiding thread-pool starvation from
 queuing one blocking task per generated hook.
+
+The required semantic pass also composes all three `LimitNetworkingNoEffect`
+patches with their declared base hooks. It preserves null/unlimited initiator FX,
+skips only the intended visual effect for limited initiators, and compares every
+native/base-hook opcode and operand outside the inserted guard. Focused mutation
+and CLR-install regressions: `./test-staging-limit-networking.sh --generated-dir PATH`.
