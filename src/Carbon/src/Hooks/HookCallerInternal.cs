@@ -98,17 +98,17 @@ public class HookCallerInternal : HookCallerCommon
 
 		CachedHookInstance hookInstance = default;
 
-		if (hookable.HookPool != null && !hookable.HookPool.TryGetValue(hookId, out hookInstance))
+		if (hookable.HookPool == null || !hookable.HookPool.TryGetValue(hookId, out hookInstance))
 		{
 			return null;
 		}
 
 		var result = (object)null;
 		List<Conflict> conflicts = null;
-		var hasRescaledBuffer = false;
 
 		if (hookable.InternalCallHookOverriden)
 		{
+			var hasRescaledBuffer = false;
 			var hook = (CachedHook)default;
 
 			if (hookInstance != null && hookInstance.IsValid())
@@ -218,8 +218,11 @@ public class HookCallerInternal : HookCallerCommon
 
 			static object DoCall(T hookable, uint hookId, CachedHook hook, object[] args)
 			{
-				// Each overload owns only the array it resized; the broadcast array belongs to the caller.
+				// Must stay local to this call: the buffer is only ours to return when this
+				// particular overload rescaled it. Sharing the flag between overloads returns
+				// the caller-owned buffer, putting it in the pool twice.
 				var hasRescaledBuffer = false;
+
 				if (args != null)
 				{
 					var actualLength = hook.Parameters.Length;
