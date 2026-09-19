@@ -159,3 +159,13 @@ documented runtime deviations listed in `CARBON_DURABLE_PATHS` inside
 `carbon-git-common.sh`. Keep that list synchronized with the reviewed diff from
 `upstream/rust_beta/staging`; do not add unchanged upstream files because doing
 so would resurrect stale implementations on a later sync.
+
+### Generated-hook semantic regressions
+
+- `./test-staging-spawn-hooks.sh`: checks explosive player/entity bindings and
+  Planner construction delivery against installed IL; see
+  [test-staging-spawn-hooks.md](test-staging-spawn-hooks.md).
+- `./test-staging-rcon-hooks.sh`: composes actual generated web RCON admission
+  hooks and rejects broken cleanup/password/registration control flow against
+  raw and publicized assemblies; see
+  [test-staging-rcon-hooks.md](test-staging-rcon-hooks.md).

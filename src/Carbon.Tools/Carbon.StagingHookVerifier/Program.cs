@@ -671,6 +671,8 @@ internal static partial class Program
 		VerifyOnPlayerDisconnectedSemantics(hooks, failures, stats);
 		VerifyMarketplaceTerminalPurchaseSemantics(hooks, failures, stats);
 		VerifyOnLoseConditionSemantics(failures, stats);
+		VerifySpawnHookSemantics(hooks, failures, stats);
+		VerifyWebRconAdmissionSemantics(hooks, failures, stats);
 	}
 
 	private static void VerifyOnPlayerDisconnectedSemantics(

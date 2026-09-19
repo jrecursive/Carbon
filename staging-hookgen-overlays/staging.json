@@ -83,6 +83,67 @@
       "set": {
         "Signature.ReturnType": "System.Boolean"
       }
+    },
+    {
+      "name": "OnFeedbackReported",
+      "reason": "Build 25400304 renumbered the unchanged native report async state machine; match the installed assembly metadata.",
+      "set": {
+        "TypeName": "BasePlayer/<OnFeedbackReport>d__774"
+      }
+    },
+    {
+      "name": "OnFeedbackReported [patch]",
+      "reason": "Build 25400304 renumbered the unchanged native report async state machine; match the installed assembly metadata.",
+      "set": {
+        "TypeName": "BasePlayer/<OnFeedbackReport>d__774"
+      }
+    },
+    {
+      "name": "OnPlayerReported",
+      "reason": "Build 25400304 renumbered the unchanged native report async state machine; match the installed assembly metadata.",
+      "set": {
+        "TypeName": "BasePlayer/<OnPlayerReported>d__773"
+      }
+    },
+    {
+      "name": "OnExplosiveThrown",
+      "reason": "Installed staging DoThrow reads throw prediction ID and reports failed creation; notify only the non-null spawned-entity success branch after DoThrowImpl returns and before UseItemAmount.",
+      "set": {
+        "InjectionIndex": 65
+      }
+    },
+    {
+      "name": "OnExplosiveDropped",
+      "reason": "Installed staging DoDrop stores prediction ID in local2 and created BaseEntity in local3; notify after native SpawnThrownEntity, setup and cooldown, immediately before item consumption.",
+      "set": {
+        "InjectionIndex": 138,
+        "ArgumentString": "a0.player, l3, this"
+      }
+    },
+    {
+      "name": "OnRconConnection [web]",
+      "reason": "Build 25400304 moved connection admission from a compiler closure to Listener.OnConnection; preserve admission before native password validation.",
+      "set": {
+        "TypeName": "Facepunch.Rcon.Listener",
+        "Signature.Name": "OnConnection",
+        "InjectionIndex": 49
+      }
+    },
+    {
+      "name": "OnRconConnection [web, patch]",
+      "reason": "Preserve nonnull admission veto through native failed-connection profiling, socket close and failed-attempt accounting before registration.",
+      "set": {
+        "TypeName": "Facepunch.Rcon.Listener",
+        "Signature.Name": "OnConnection",
+        "InjectionIndex": 55,
+        "Instructions": [
+          {
+            "OpCode": "bne_un_s",
+            "OpType": "Instruction",
+            "Operand": 71
+          }
+        ]
+      }
     }
   ]
 }

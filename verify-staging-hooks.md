@@ -13,12 +13,20 @@ This catches the failure classes that otherwise appear during startup:
 - `OnPlayerDisconnected` moving outside Rust's native non-null `BasePlayer` branch
 - `OnMarketplaceTerminalPurchase` dispatching with wrong locals or after purchase side effects
 - `OnLoseCondition` failing to copy a plugin-mutated by-ref amount back before subtraction
+- explosive notifications passing a prediction ID or an uninitialized entity, or running before spawn/after item consumption
+- `OnEntityBuilt` escaping its successful placement branch or passing the wrong GameObject
 
 Required semantic checks run in every normal parent verification, including
 `--requested-only`. They execute transpilers over the installed Rust IL and
 require the disconnect hook to stay in the non-null player branch, the
 marketplace hook to cancel before eligibility/power/transaction work, and the
 durability gateway to apply the value copied back from hook argument two.
+Explosive checks also trace the native throw/spawn helpers and verify the exact
+RPC player/entity locals, successful creation guard, setup/cooldown ordering and
+pre-consumption notification boundary. Construction checks preserve the existing
+Planner/GameObject event after native spawn and before deployment/payment work.
+Run `./test-staging-spawn-hooks.sh` for installed-IL positive and negative
+regressions of these semantic checks; see `test-staging-spawn-hooks.md`.
 
 The legacy focused compatibility mode is still available with `--focused-compat`, but strict staging upgrades should not use it.
 
