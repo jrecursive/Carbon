@@ -190,11 +190,11 @@ public class HookCallerInternal : HookCallerCommon
 					{
 						if (cachedHook.IsAsync)
 						{
-							DoCall(hookable, hookId, cachedHook, args, ref hasRescaledBuffer);
+							DoCall(hookable, hookId, cachedHook, args);
 						}
 						else
 						{
-							var currentResult = DoCall(hookable, hookId, cachedHook, args, ref hasRescaledBuffer);
+							var currentResult = DoCall(hookable, hookId, cachedHook, args);
 
 							if (currentResult != null)
 							{
@@ -216,8 +216,10 @@ public class HookCallerInternal : HookCallerCommon
 			HookCaller.ConflictCheck(conflicts, ref result, hookId);
 			FrameDispose(false, args, ref conflicts);
 
-			static object DoCall(T hookable, uint hookId, CachedHook hook, object[] args, ref bool hasRescaledBuffer)
+			static object DoCall(T hookable, uint hookId, CachedHook hook, object[] args)
 			{
+				// Each overload owns only the array it resized; the broadcast array belongs to the caller.
+				var hasRescaledBuffer = false;
 				if (args != null)
 				{
 					var actualLength = hook.Parameters.Length;
@@ -233,55 +235,60 @@ public class HookCallerInternal : HookCallerCommon
 					}
 				}
 
-				if (args != null && !SequenceEqual(hook.Parameters, args)) return null;
-				var result2 = (object)default;
-				hookable.TrackStart();
-				var beforeMemory = hookable.TotalMemoryUsed;
-
 				try
 				{
-					result2 = hook.Method.Invoke(hookable, args);
-				}
-				catch (Exception ex)
-				{
-					var exception = ex.InnerException ?? ex;
-					var readableHook = HookStringPool.GetOrAdd(hookId);
-					Carbon.Logger.Error($"Failed to call hook '{readableHook}' on plugin '{hookable.Name} v{hookable.Version}'", exception);
-				}
+					if (args != null && !SequenceEqual(hook.Parameters, args)) return null;
+					var result2 = (object)default;
+					hookable.TrackStart();
+					var beforeMemory = hookable.TotalMemoryUsed;
 
-				hookable.TrackEnd();
-				var afterHookTime = hookable.CurrentHookTime;
-				var afterMemory = hookable.TotalMemoryUsed;
-				var totalMemory = afterMemory - beforeMemory;
-
-				hook?.OnFired(hookable, afterHookTime, totalMemory);
-
-				var afterHookTimeMs = afterHookTime.TotalMilliseconds;
-
-				if (afterHookTimeMs > 100)
-				{
-					if (hookable is Plugin basePlugin && !basePlugin.IsCorePlugin)
+					try
 					{
+						result2 = hook.Method.Invoke(hookable, args);
+					}
+					catch (Exception ex)
+					{
+						var exception = ex.InnerException ?? ex;
 						var readableHook = HookStringPool.GetOrAdd(hookId);
-						Carbon.Logger.Warn($" {hookable.ToPrettyString()} hook '{readableHook}' took longer than 100ms [{afterHookTimeMs:0}ms]{(hookable.HasGCCollected ? " [GC]" : string.Empty)}");
+						Carbon.Logger.Error($"Failed to call hook '{readableHook}' on plugin '{hookable.Name} v{hookable.Version}'", exception);
+					}
 
-						var wasLagSpike = afterHookTimeMs >= Community.Runtime.Config.Debugging.HookLagSpikeThreshold;
+					hookable.TrackEnd();
+					var afterHookTime = hookable.CurrentHookTime;
+					var afterMemory = hookable.TotalMemoryUsed;
+					var totalMemory = afterMemory - beforeMemory;
 
-						if (wasLagSpike)
+					hook?.OnFired(hookable, afterHookTime, totalMemory);
+
+					var afterHookTimeMs = afterHookTime.TotalMilliseconds;
+
+					if (afterHookTimeMs > 100)
+					{
+						if (hookable is Plugin basePlugin && !basePlugin.IsCorePlugin)
 						{
-							hook.OnLagSpike(hookable);
-						}
+							var readableHook = HookStringPool.GetOrAdd(hookId);
+							Carbon.Logger.Warn($" {hookable.ToPrettyString()} hook '{readableHook}' took longer than 100ms [{afterHookTimeMs:0}ms]{(hookable.HasGCCollected ? " [GC]" : string.Empty)}");
 
-						Analytics.plugin_time_warn(readableHook, basePlugin, afterHookTimeMs, totalMemory, wasLagSpike, hook, hookable);
+							var wasLagSpike = afterHookTimeMs >= Community.Runtime.Config.Debugging.HookLagSpikeThreshold;
+
+							if (wasLagSpike)
+							{
+								hook.OnLagSpike(hookable);
+							}
+
+							Analytics.plugin_time_warn(readableHook, basePlugin, afterHookTimeMs, totalMemory, wasLagSpike, hook, hookable);
+						}
+					}
+
+					return result2;
+				}
+				finally
+				{
+					if (hasRescaledBuffer)
+					{
+						HookCaller.Caller.ReturnBuffer(args);
 					}
 				}
-
-				if (hasRescaledBuffer)
-				{
-					HookCaller.Caller.ReturnBuffer(args);
-				}
-
-				return result2;
 			}
 		}
 
