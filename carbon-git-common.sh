@@ -15,6 +15,7 @@ CARBON_WORK_BRANCH="${CARBON_WORK_BRANCH:-washed/staging}"
 
 CARBON_DURABLE_PATHS=(
 	".gitignore"
+	"global.json"
 	"carbon-git-common.sh"
 	"fork-init.sh"
 	"save-pipeline-work.sh"
@@ -191,6 +192,9 @@ carbon_switch_or_create_work_branch() {
   if git show-ref --verify --quiet "refs/heads/${CARBON_WORK_BRANCH}"; then
     carbon_log "Switching to existing local branch ${CARBON_WORK_BRANCH}."
     git switch "${CARBON_WORK_BRANCH}"
+  elif git show-ref --verify --quiet "refs/remotes/${CARBON_FORK_REMOTE}/${CARBON_WORK_BRANCH}"; then
+    carbon_log "Checking out the maintained fork branch from ${CARBON_FORK_REMOTE}."
+    git switch -c "${CARBON_WORK_BRANCH}" --track "${CARBON_FORK_REMOTE}/${CARBON_WORK_BRANCH}"
   else
     carbon_log "Creating local branch ${CARBON_WORK_BRANCH} from current HEAD."
     git switch -c "${CARBON_WORK_BRANCH}"
