@@ -5,7 +5,7 @@ These scripts keep this checkout owned by `git@github.com:jrecursive/Carbon.git`
 The normal branch for fork work is:
 
 ```text
-jrecursive/rust_beta-staging-minimal-2633
+washed/staging
 ```
 
 The official branch used as the reset point is:
@@ -13,6 +13,17 @@ The official branch used as the reset point is:
 ```text
 upstream/rust_beta/staging
 ```
+
+The September 2026 release housekeeping preserves the old branch names and the
+`backup/pre-release-housekeeping-20260920` tag. The maintained fork is
+`washed/staging`; clone it explicitly rather than assuming GitHub's default
+branch identifies the maintained fork. The build SDK is pinned in `global.json`.
+The Depot submodule retains its independently specified SDK and commit.
+
+For a Washed Up release, use rust-platform's `update-platform.sh` and
+`RELEASE-PROCEDURE.md`. Those freeze the upstream commit, Rust references, hook
+inputs, and resulting bundle. The convenience commands below are individual
+development operations; they are not release qualification or live promotion.
 
 ## First-Time Setup
 

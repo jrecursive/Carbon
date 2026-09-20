@@ -11,7 +11,7 @@ CARBON_FORK_REMOTE_URL="${CARBON_FORK_REMOTE_URL:-git@github.com:jrecursive/Carb
 CARBON_UPSTREAM_REMOTE="${CARBON_UPSTREAM_REMOTE:-upstream}"
 CARBON_UPSTREAM_REMOTE_URL="${CARBON_UPSTREAM_REMOTE_URL:-https://github.com/CarbonCommunity/Carbon.git}"
 CARBON_OFFICIAL_BRANCH="${CARBON_OFFICIAL_BRANCH:-rust_beta/staging}"
-CARBON_WORK_BRANCH="${CARBON_WORK_BRANCH:-jrecursive/rust_beta-staging-minimal-2633}"
+CARBON_WORK_BRANCH="${CARBON_WORK_BRANCH:-washed/staging}"
 
 CARBON_DURABLE_PATHS=(
 	".gitignore"

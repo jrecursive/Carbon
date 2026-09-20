@@ -1,13 +1,30 @@
 # Staging fork deviations
 
-This branch is rebuilt on top of `upstream/rust_beta/staging`. For the protocol
-2633 qualification it is pinned to Carbon commit
-`dedaa79566283b4c84f84e0c0241381f92265d0d` and installed Rust staging build
-`25110115` (`2633.288.1`). The installed local Rust staging server is the source
-of truth for managed assemblies. The goal is to carry only deterministic build
-and hook metadata needed while official Carbon catches up with Rust staging.
+The maintained branch is `washed/staging`, based on
+`upstream/rust_beta/staging`. The last qualified runtime baseline (September 19,
+2026) used fork commit `450d46cedeb723b5c2a4cf9da5ce5d918bbd6681`, upstream
+`ecb06d3de74ba11b5a44b7e5aa7af64fafe4419e`, and installed Rust staging build
+`25400304` (`2633.288.1`). Later documentation/tooling commits do not certify a
+new runtime binary. Each release's compatibility record is authoritative for its
+actual inputs and artifacts; a branch name or displayed Carbon version is not.
+
+Public ports begin with an explicitly pinned official production artifact or
+production source commit. For each deviation below, record whether it is already
+upstream, ported and tested, staging-only, or unnecessary with evidence. An
+unreviewed deviation remains pending; do not merge the whole staging fork into
+production or silently assume an official build includes a fork fix.
 
 ## Retained deviations
+
+- `HookCallerInternal` owns reflected-overload argument buffers through the
+  dispatch lifetime and returns them to the pool after the call. This generic
+  ownership fix requires explicit review in each public port, independently of
+  staging-specific IL bindings.
+- The September 19 hook refresh includes report state-machine, RCON admission,
+  explosive, construction and limited-networking corrections. The corresponding
+  verifier checks ordering and cancellation semantics against the exact Rust
+  input. These bindings are staging-specific until a public reference proves
+  their applicability; successful installation alone is insufficient.
 
 - Fork workflow wrappers (`upgrade-staging.sh`, `build-staging-hooks.sh`,
   `verify-staging-hooks.sh`, and their supporting scripts) provide a repeatable
