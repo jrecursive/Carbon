@@ -44,9 +44,14 @@ The legacy focused compatibility mode is still available with `--focused-compat`
 ./verify-staging-hooks.sh --hooks-dir release/.tmp/ReleaseUnix/carbon/managed/hooks
 ./verify-staging-hooks.sh --requested-only --install-hooks-from-log /home/johnm/git/rust-platform/current_errors.log
 ./verify-staging-hooks.sh --install-hook 'CanCatchFish[5fbe61]'
+./verify-staging-hooks.sh --dump-hook OnItemCraft --carbon-managed release/.tmp/ReleaseUnix/carbon/managed
 ./verify-staging-hooks.sh --all-generated --strict-no-suppression --install-all-dynamic
 ./verify-staging-hooks.sh --allow-suppression-file explicit-suppressions.json
 ```
+
+`--dump-hook` is read-only inspection: it prints the selected target's local
+slots and indexed native IL, then exits without installing patches. Use it when
+reviewing changed signatures, injection points and hook argument locals.
 
 Defaults:
 

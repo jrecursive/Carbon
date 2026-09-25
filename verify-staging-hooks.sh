@@ -13,6 +13,7 @@ VERIFY_COMPAT_SHIMS=0
 INSTALL_COMPAT_HOOKS=1
 INSTALL_ALL_DYNAMIC=0
 INSTALL_HOOKS_FROM_LOG=""
+DUMP_HOOK=""
 INSTALL_HOOKS=()
 MAX_PARALLEL_INSTALL_CHECKS="${CARBON_HOOK_VERIFY_PARALLELISM:-8}"
 
@@ -41,6 +42,7 @@ Options:
   --install-hook <hook>     Install-test one generated hook by full name, hook name, or log token.
   --install-hooks-from-log  Parse hook request/patch failures from a Carbon/current_errors log.
   --install-all-dynamic     Install-test every generated dynamic hook in child processes.
+  --dump-hook <hook>        Print one hook's target locals and native IL without installing it.
   --max-parallel-install-checks <n>
                             Maximum child install-test processes. Defaults to
                             $CARBON_HOOK_VERIFY_PARALLELISM or 8.
@@ -111,6 +113,10 @@ while [[ $# -gt 0 ]]; do
     --install-all-dynamic)
       INSTALL_ALL_DYNAMIC=1
       shift
+      ;;
+    --dump-hook)
+      DUMP_HOOK="${2:?Missing value for $1}"
+      shift 2
       ;;
     --max-parallel-install-checks)
       MAX_PARALLEL_INSTALL_CHECKS="${2:?Missing value for $1}"
@@ -219,5 +225,8 @@ for hook in "${INSTALL_HOOKS[@]}"; do
 done
 
 RUN_ARGS+=(--max-parallel-install-checks "${MAX_PARALLEL_INSTALL_CHECKS}")
+if [[ -n "${DUMP_HOOK}" ]]; then
+  RUN_ARGS+=(--dump-hook "${DUMP_HOOK}")
+fi
 
 dotnet run --no-build --project "${PROJECT}" -c "${CONFIGURATION}" -- "${RUN_ARGS[@]}"

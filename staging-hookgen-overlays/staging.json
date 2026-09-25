@@ -353,6 +353,207 @@
           }
         ]
       }
+    },
+    {
+      "name": "OnItemRemovedFromContainer",
+      "reason": "Build 25529090 adds sourcePlayer to native Remove and three delegate calls; preserve the existing container/item notification after successful mutation.",
+      "set": {
+        "Signature.Parameters": [
+          "Item",
+          "BasePlayer"
+        ],
+        "InjectionIndex": 81,
+        "ArgumentBehavior": 4,
+        "ArgumentString": "this, a0"
+      }
+    },
+    {
+      "name": "OnItemAddedToContainer",
+      "reason": "Build 25529090 adds sourcePlayer to native Insert and two delegate calls; preserve the existing container/item notification after successful mutation.",
+      "set": {
+        "Signature.Parameters": [
+          "Item",
+          "BasePlayer"
+        ],
+        "InjectionIndex": 70,
+        "ArgumentBehavior": 4,
+        "ArgumentString": "this, a0"
+      }
+    },
+    {
+      "name": "OnClothingItemChanged",
+      "reason": "Build 25529090 adds sourcePlayer to OnClothingChanged and its contents callback; retain the inventory/item/added notification after native work.",
+      "set": {
+        "Signature.Parameters": [
+          "Item",
+          "System.Boolean",
+          "BasePlayer"
+        ],
+        "InjectionIndex": 64
+      }
+    },
+    {
+      "name": "OnItemCraft",
+      "reason": "Build 25529090 adds the optional sourcePlayer load before RemoveFromContainer; notify after task setup on an empty stack, immediately before queue admission.",
+      "set": {
+        "InjectionIndex": 84
+      }
+    },
+    {
+      "name": "FixItemKeyId [patch]",
+      "reason": "Compose after the repaired OnItemCraft injection: preserve null-result continuation, temporary-blueprint instanceData restoration and Boolean return semantics.",
+      "set": {
+        "InjectionIndex": 92,
+        "Instructions": [
+          {
+            "OpCode": "brfalse_s",
+            "OpType": "Instruction",
+            "Operand": 97
+          },
+          {
+            "OpCode": "ldarg_s",
+            "OpType": "Parameter",
+            "Operand": 5
+          },
+          {
+            "OpCode": "brfalse_s",
+            "OpType": "Instruction",
+            "Operand": 94
+          },
+          {
+            "OpCode": "ldloc_0",
+            "OpType": "None"
+          },
+          {
+            "OpCode": "ldfld",
+            "OpType": "Field",
+            "Operand": "Assembly-CSharp|ItemCraftTask|instanceData"
+          },
+          {
+            "OpCode": "brfalse_s",
+            "OpType": "Instruction",
+            "Operand": 94
+          },
+          {
+            "OpCode": "ldarg_s",
+            "OpType": "Parameter",
+            "Operand": 5
+          },
+          {
+            "OpCode": "ldloc_0",
+            "OpType": "None"
+          },
+          {
+            "OpCode": "ldfld",
+            "OpType": "Field",
+            "Operand": "Assembly-CSharp|ItemCraftTask|instanceData"
+          },
+          {
+            "OpCode": "stfld",
+            "OpType": "Field",
+            "Operand": "Assembly-CSharp|Item|instanceData"
+          }
+        ]
+      }
+    },
+    {
+      "name": "OnBigWheelWin",
+      "reason": "Build 25529090 adds sourcePlayer before winning-item removal; keep the win veto before amount mutation and advance its skip target to the loss-loop initializer.",
+      "set": {
+        "Instructions": [
+          {
+            "OpCode": "ldstr",
+            "OpType": "String",
+            "Operand": "OnBigWheelWin"
+          },
+          {
+            "OpCode": "ldarg_0",
+            "OpType": "None"
+          },
+          {
+            "OpCode": "ldloc_s",
+            "OpType": "Variable",
+            "Operand": 6
+          },
+          {
+            "OpCode": "ldloc_3",
+            "OpType": "None"
+          },
+          {
+            "OpCode": "ldloc_s",
+            "OpType": "Variable",
+            "Operand": 7
+          },
+          {
+            "OpCode": "box",
+            "OpType": "Type",
+            "Operand": "mscorlib|System.Int32"
+          },
+          {
+            "OpCode": "call",
+            "OpType": "Method",
+            "Operand": "Oxide.Core|Oxide.Core.Interface|CallHook(System.String,System.Object,System.Object,System.Object,System.Object)"
+          },
+          {
+            "OpCode": "brtrue_s",
+            "OpType": "Instruction",
+            "Operand": 76
+          }
+        ]
+      }
+    },
+    {
+      "name": "OnBigWheelLoss",
+      "reason": "Compose after the eight-instruction win hook; preserve the loss veto before analytics/removal and target the loop increment after the new sourcePlayer load.",
+      "set": {
+        "InjectionIndex": 94,
+        "Instructions": [
+          {
+            "OpCode": "ldstr",
+            "OpType": "String",
+            "Operand": "OnBigWheelLoss"
+          },
+          {
+            "OpCode": "ldarg_0",
+            "OpType": "None"
+          },
+          {
+            "OpCode": "ldloc_s",
+            "OpType": "Variable",
+            "Operand": 10
+          },
+          {
+            "OpCode": "ldloc_3",
+            "OpType": "None"
+          },
+          {
+            "OpCode": "call",
+            "OpType": "Method",
+            "Operand": "Oxide.Core|Oxide.Core.Interface|CallHook(System.String,System.Object,System.Object,System.Object)"
+          },
+          {
+            "OpCode": "brtrue_s",
+            "OpType": "Instruction",
+            "Operand": 108
+          }
+        ]
+      }
+    },
+    {
+      "name": "OnNpcConversationRespond",
+      "reason": "Build 25529090 adds animal selection and response bounds checks; veto only the existing non-null regular response branch using ConversationData local6 and ResponseNode local20.",
+      "set": {
+        "InjectionIndex": 187,
+        "ArgumentString": "this, l0, l6, l20"
+      }
+    },
+    {
+      "name": "OnNpcConversationResponded",
+      "reason": "Compose after the nine-instruction response veto; retain the terminal notification after ForceSpeechNode with the shifted conversation/response locals.",
+      "set": {
+        "InjectionIndex": 246,
+        "ArgumentString": "this, l0, l6, l20"
+      }
     }
   ]
 }
