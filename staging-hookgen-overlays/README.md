@@ -9,3 +9,10 @@ stale entries whose old and new values are equal. Remove a patch as soon as the
 upstream OPJ carries the same correction.
 
 Fetched OPJ files, patched OPJ files, generated C# source, summaries, and patch reports are written under `release/.tmp` and are not committed.
+
+Build 25529090 renumbers the unchanged player report async bodies to
+`OnFeedbackReport>d__777` / `OnPlayerReported>d__776` and Deep Sea open/close
+coroutines to `OpenDeepSeaAsync>d__76` / `CloseDeepSeaAsync>d__78`. Their source
+bodies match the hash-verified build 25400304 baseline. The seven affected
+overlays change only target type names; hook arguments and injection points
+remain subject to strict generation and installation verification.

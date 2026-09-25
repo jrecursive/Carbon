@@ -86,23 +86,51 @@
     },
     {
       "name": "OnFeedbackReported",
-      "reason": "Build 25400304 renumbered the unchanged native report async state machine; match the installed assembly metadata.",
+      "reason": "Build 25529090 renumbered the unchanged native report async state machine; match the installed assembly metadata.",
       "set": {
-        "TypeName": "BasePlayer/<OnFeedbackReport>d__774"
+        "TypeName": "BasePlayer/<OnFeedbackReport>d__777"
       }
     },
     {
       "name": "OnFeedbackReported [patch]",
-      "reason": "Build 25400304 renumbered the unchanged native report async state machine; match the installed assembly metadata.",
+      "reason": "Build 25529090 renumbered the unchanged native report async state machine; match the installed assembly metadata.",
       "set": {
-        "TypeName": "BasePlayer/<OnFeedbackReport>d__774"
+        "TypeName": "BasePlayer/<OnFeedbackReport>d__777"
       }
     },
     {
       "name": "OnPlayerReported",
-      "reason": "Build 25400304 renumbered the unchanged native report async state machine; match the installed assembly metadata.",
+      "reason": "Build 25529090 renumbered the unchanged native report async state machine; match the installed assembly metadata.",
       "set": {
-        "TypeName": "BasePlayer/<OnPlayerReported>d__773"
+        "TypeName": "BasePlayer/<OnPlayerReported>d__776"
+      }
+    },
+    {
+      "name": "OnDeepSeaOpened",
+      "reason": "Build 25529090 renumbered the unchanged native open coroutine; retain the existing completion injection and locals.",
+      "set": {
+        "TypeName": "DeepSeaManager/<OpenDeepSeaAsync>d__76"
+      }
+    },
+    {
+      "name": "OnDeepSeaOpen",
+      "reason": "Build 25529090 renumbered the unchanged native open coroutine; retain the existing start injection and locals.",
+      "set": {
+        "TypeName": "DeepSeaManager/<OpenDeepSeaAsync>d__76"
+      }
+    },
+    {
+      "name": "OnDeepSeaClosed",
+      "reason": "Build 25529090 renumbered the unchanged native close coroutine; retain the existing completion injection and locals.",
+      "set": {
+        "TypeName": "DeepSeaManager/<CloseDeepSeaAsync>d__78"
+      }
+    },
+    {
+      "name": "OnDeepSeaClose",
+      "reason": "Build 25529090 renumbered the unchanged native close coroutine; retain the existing start injection and locals.",
+      "set": {
+        "TypeName": "DeepSeaManager/<CloseDeepSeaAsync>d__78"
       }
     },
     {
