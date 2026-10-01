@@ -8,13 +8,19 @@ The default OPJ input is Oxide.Rust's `staging` branch:
 https://raw.githubusercontent.com/OxideMod/Oxide.Rust/staging/resources/Rust.opj
 ```
 
-Protocol 2633 pins those source bytes to SHA-256
-`caecfc18b07e958ab63d18819139e47a981af489d37b45c2beaa2f07ede79d25`.
+The October 1 staging review pins those source bytes to SHA-256
+`04565f727cf661acbba068dbc080f236ab237dcab2b64984f0c72a2e1a4b680e`.
 The build fails before applying overlays if the remote content drifts. Override
 the expected checksum only together with a reviewed Rust/OPJ update by using
 `--opj-sha256` or `CARBON_HOOKGEN_OPJ_SHA256`.
 
 The script applies `staging-hookgen-overlays/staging.json` when the upstream OPJ metadata is stale for the installed staging DLLs. Every overlay patch must match exactly one hook and must actually change its original value. It writes the fetched OPJ, patched OPJ, overlay report, generated C# source, generator summary, and manifest under `release/.tmp`.
+
+The October 1 upstream update adds cutting and livestock hooks and adopts the
+previous report, Deep Sea, RCON, inventory, crafting and conversation retargeting.
+Those redundant overlay fields are removed. The remaining overlay preserves
+native return signatures, construction cleanup, explosive notification ordering,
+limited-networking effects and stable container/item notification arguments.
 
 `staging-hookgen-expected-skips.json` is an exact allowlist for hooks the
 generator intentionally skips. The build fails when the actual skipped hook set

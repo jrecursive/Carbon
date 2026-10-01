@@ -85,55 +85,6 @@
       }
     },
     {
-      "name": "OnFeedbackReported",
-      "reason": "Build 25529090 renumbered the unchanged native report async state machine; match the installed assembly metadata.",
-      "set": {
-        "TypeName": "BasePlayer/<OnFeedbackReport>d__777"
-      }
-    },
-    {
-      "name": "OnFeedbackReported [patch]",
-      "reason": "Build 25529090 renumbered the unchanged native report async state machine; match the installed assembly metadata.",
-      "set": {
-        "TypeName": "BasePlayer/<OnFeedbackReport>d__777"
-      }
-    },
-    {
-      "name": "OnPlayerReported",
-      "reason": "Build 25529090 renumbered the unchanged native report async state machine; match the installed assembly metadata.",
-      "set": {
-        "TypeName": "BasePlayer/<OnPlayerReported>d__776"
-      }
-    },
-    {
-      "name": "OnDeepSeaOpened",
-      "reason": "Build 25529090 renumbered the unchanged native open coroutine; retain the existing completion injection and locals.",
-      "set": {
-        "TypeName": "DeepSeaManager/<OpenDeepSeaAsync>d__76"
-      }
-    },
-    {
-      "name": "OnDeepSeaOpen",
-      "reason": "Build 25529090 renumbered the unchanged native open coroutine; retain the existing start injection and locals.",
-      "set": {
-        "TypeName": "DeepSeaManager/<OpenDeepSeaAsync>d__76"
-      }
-    },
-    {
-      "name": "OnDeepSeaClosed",
-      "reason": "Build 25529090 renumbered the unchanged native close coroutine; retain the existing completion injection and locals.",
-      "set": {
-        "TypeName": "DeepSeaManager/<CloseDeepSeaAsync>d__78"
-      }
-    },
-    {
-      "name": "OnDeepSeaClose",
-      "reason": "Build 25529090 renumbered the unchanged native close coroutine; retain the existing start injection and locals.",
-      "set": {
-        "TypeName": "DeepSeaManager/<CloseDeepSeaAsync>d__78"
-      }
-    },
-    {
       "name": "OnExplosiveThrown",
       "reason": "Installed staging DoThrow reads throw prediction ID and reports failed creation; notify only the non-null spawned-entity success branch after DoThrowImpl returns and before UseItemAmount.",
       "set": {
@@ -141,43 +92,9 @@
       }
     },
     {
-      "name": "OnExplosiveDropped",
-      "reason": "Installed staging DoDrop stores prediction ID in local2 and created BaseEntity in local3; notify after native SpawnThrownEntity, setup and cooldown, immediately before item consumption.",
-      "set": {
-        "InjectionIndex": 138,
-        "ArgumentString": "a0.player, l3, this"
-      }
-    },
-    {
-      "name": "OnRconConnection [web]",
-      "reason": "Build 25400304 moved connection admission from a compiler closure to Listener.OnConnection; preserve admission before native password validation.",
-      "set": {
-        "TypeName": "Facepunch.Rcon.Listener",
-        "Signature.Name": "OnConnection",
-        "InjectionIndex": 49
-      }
-    },
-    {
-      "name": "OnRconConnection [web, patch]",
-      "reason": "Preserve nonnull admission veto through native failed-connection profiling, socket close and failed-attempt accounting before registration.",
-      "set": {
-        "TypeName": "Facepunch.Rcon.Listener",
-        "Signature.Name": "OnConnection",
-        "InjectionIndex": 55,
-        "Instructions": [
-          {
-            "OpCode": "bne_un_s",
-            "OpType": "Instruction",
-            "Operand": 71
-          }
-        ]
-      }
-    },
-    {
       "name": "OnConstructionPlace",
       "reason": "Installed staging extracts construction initialization/spawn into SpawnConstruction; veto the validated unspawned entity in DoPlacement before entering that helper, preserving API args and cleanup. Recast optional DecayEntity cleanup directly instead of referencing a removed native/synthetic local slot.",
       "set": {
-        "InjectionIndex": 18,
         "Instructions": [
           {
             "OpCode": "ldstr",
@@ -356,203 +273,18 @@
     },
     {
       "name": "OnItemRemovedFromContainer",
-      "reason": "Build 25529090 adds sourcePlayer to native Remove and three delegate calls; preserve the existing container/item notification after successful mutation.",
+      "reason": "Native sourcePlayer is already included upstream; keep the stable container/item notification arguments after successful mutation.",
       "set": {
-        "Signature.Parameters": [
-          "Item",
-          "BasePlayer"
-        ],
-        "InjectionIndex": 81,
         "ArgumentBehavior": 4,
         "ArgumentString": "this, a0"
       }
     },
     {
       "name": "OnItemAddedToContainer",
-      "reason": "Build 25529090 adds sourcePlayer to native Insert and two delegate calls; preserve the existing container/item notification after successful mutation.",
+      "reason": "Native sourcePlayer is already included upstream; keep the stable container/item notification arguments after successful mutation.",
       "set": {
-        "Signature.Parameters": [
-          "Item",
-          "BasePlayer"
-        ],
-        "InjectionIndex": 70,
         "ArgumentBehavior": 4,
         "ArgumentString": "this, a0"
-      }
-    },
-    {
-      "name": "OnClothingItemChanged",
-      "reason": "Build 25529090 adds sourcePlayer to OnClothingChanged and its contents callback; retain the inventory/item/added notification after native work.",
-      "set": {
-        "Signature.Parameters": [
-          "Item",
-          "System.Boolean",
-          "BasePlayer"
-        ],
-        "InjectionIndex": 64
-      }
-    },
-    {
-      "name": "OnItemCraft",
-      "reason": "Build 25529090 adds the optional sourcePlayer load before RemoveFromContainer; notify after task setup on an empty stack, immediately before queue admission.",
-      "set": {
-        "InjectionIndex": 84
-      }
-    },
-    {
-      "name": "FixItemKeyId [patch]",
-      "reason": "Compose after the repaired OnItemCraft injection: preserve null-result continuation, temporary-blueprint instanceData restoration and Boolean return semantics.",
-      "set": {
-        "InjectionIndex": 92,
-        "Instructions": [
-          {
-            "OpCode": "brfalse_s",
-            "OpType": "Instruction",
-            "Operand": 97
-          },
-          {
-            "OpCode": "ldarg_s",
-            "OpType": "Parameter",
-            "Operand": 5
-          },
-          {
-            "OpCode": "brfalse_s",
-            "OpType": "Instruction",
-            "Operand": 94
-          },
-          {
-            "OpCode": "ldloc_0",
-            "OpType": "None"
-          },
-          {
-            "OpCode": "ldfld",
-            "OpType": "Field",
-            "Operand": "Assembly-CSharp|ItemCraftTask|instanceData"
-          },
-          {
-            "OpCode": "brfalse_s",
-            "OpType": "Instruction",
-            "Operand": 94
-          },
-          {
-            "OpCode": "ldarg_s",
-            "OpType": "Parameter",
-            "Operand": 5
-          },
-          {
-            "OpCode": "ldloc_0",
-            "OpType": "None"
-          },
-          {
-            "OpCode": "ldfld",
-            "OpType": "Field",
-            "Operand": "Assembly-CSharp|ItemCraftTask|instanceData"
-          },
-          {
-            "OpCode": "stfld",
-            "OpType": "Field",
-            "Operand": "Assembly-CSharp|Item|instanceData"
-          }
-        ]
-      }
-    },
-    {
-      "name": "OnBigWheelWin",
-      "reason": "Build 25529090 adds sourcePlayer before winning-item removal; keep the win veto before amount mutation and advance its skip target to the loss-loop initializer.",
-      "set": {
-        "Instructions": [
-          {
-            "OpCode": "ldstr",
-            "OpType": "String",
-            "Operand": "OnBigWheelWin"
-          },
-          {
-            "OpCode": "ldarg_0",
-            "OpType": "None"
-          },
-          {
-            "OpCode": "ldloc_s",
-            "OpType": "Variable",
-            "Operand": 6
-          },
-          {
-            "OpCode": "ldloc_3",
-            "OpType": "None"
-          },
-          {
-            "OpCode": "ldloc_s",
-            "OpType": "Variable",
-            "Operand": 7
-          },
-          {
-            "OpCode": "box",
-            "OpType": "Type",
-            "Operand": "mscorlib|System.Int32"
-          },
-          {
-            "OpCode": "call",
-            "OpType": "Method",
-            "Operand": "Oxide.Core|Oxide.Core.Interface|CallHook(System.String,System.Object,System.Object,System.Object,System.Object)"
-          },
-          {
-            "OpCode": "brtrue_s",
-            "OpType": "Instruction",
-            "Operand": 76
-          }
-        ]
-      }
-    },
-    {
-      "name": "OnBigWheelLoss",
-      "reason": "Compose after the eight-instruction win hook; preserve the loss veto before analytics/removal and target the loop increment after the new sourcePlayer load.",
-      "set": {
-        "InjectionIndex": 94,
-        "Instructions": [
-          {
-            "OpCode": "ldstr",
-            "OpType": "String",
-            "Operand": "OnBigWheelLoss"
-          },
-          {
-            "OpCode": "ldarg_0",
-            "OpType": "None"
-          },
-          {
-            "OpCode": "ldloc_s",
-            "OpType": "Variable",
-            "Operand": 10
-          },
-          {
-            "OpCode": "ldloc_3",
-            "OpType": "None"
-          },
-          {
-            "OpCode": "call",
-            "OpType": "Method",
-            "Operand": "Oxide.Core|Oxide.Core.Interface|CallHook(System.String,System.Object,System.Object,System.Object)"
-          },
-          {
-            "OpCode": "brtrue_s",
-            "OpType": "Instruction",
-            "Operand": 108
-          }
-        ]
-      }
-    },
-    {
-      "name": "OnNpcConversationRespond",
-      "reason": "Build 25529090 adds animal selection and response bounds checks; veto only the existing non-null regular response branch using ConversationData local6 and ResponseNode local20.",
-      "set": {
-        "InjectionIndex": 187,
-        "ArgumentString": "this, l0, l6, l20"
-      }
-    },
-    {
-      "name": "OnNpcConversationResponded",
-      "reason": "Compose after the nine-instruction response veto; retain the terminal notification after ForceSpeechNode with the shifted conversation/response locals.",
-      "set": {
-        "InjectionIndex": 246,
-        "ArgumentString": "this, l0, l6, l20"
       }
     }
   ]
