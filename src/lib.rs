@@ -9,6 +9,7 @@ use std::ffi::{c_char, CStr};
 
 mod profiler;
 mod mono;
+mod diagnostics;
 
 pub const PROTOCOL: u64 = 4;
 
