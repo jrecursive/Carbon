@@ -35,6 +35,9 @@ public class MonoProfilerConfig
 	public List<string> Harmony = new();
 #endif
 
+	// Bounded exception fingerprints and individual GC pauses; disabled unless selected.
+	public bool Diagnostics = false;
+
 	public const string Star = "*";
 
 	public static MonoProfilerConfig Instance { get; set; }
