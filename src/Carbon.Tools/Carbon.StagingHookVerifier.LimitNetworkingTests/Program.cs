@@ -72,6 +72,8 @@ internal static class Test
         Reject("headshot native remainder changed", 3, il => il[^1].opcode = OpCodes.Nop);
         Reject("impact unlimited returns", 1, il => il[Limit(il) + 1].opcode = OpCodes.Brtrue_S);
         Reject("projectile limit polarity reversed", 2, il => il[Limit(il) + 1].opcode = OpCodes.Brfalse_S);
+        Reject("projectile native fired check removed", 2, il => il[Limit(il) - 3].opcode = OpCodes.Nop);
+        Reject("projectile native fired check polarity reversed", 2, il => il[Limit(il) - 2].opcode = OpCodes.Brtrue_S);
 
         // The original failure was invalid CLR code after dependency composition.
         // Install the actual generated transpilers, but never execute the game method.
@@ -88,6 +90,18 @@ internal static class Test
             // Removing the base first would temporarily apply base-relative offsets to native IL.
             harmony.Unpatch(targets[2], patches[2].GetMethod("Transpiler")!);
             harmony.Unpatch(targets[2], bases[2].GetMethod("Transpiler")!);
+        }
+        try
+        {
+            harmony.Patch(targets[1], transpiler: new HarmonyMethod(bases[1].GetMethod("Transpiler")!));
+            harmony.Patch(targets[1], transpiler: new HarmonyMethod(patches[1].GetMethod("Transpiler")!));
+            Console.WriteLine("PASS projectile base+patch CLR installation (method never executed)");
+            passed++;
+        }
+        finally
+        {
+            harmony.Unpatch(targets[1], patches[1].GetMethod("Transpiler")!);
+            harmony.Unpatch(targets[1], bases[1].GetMethod("Transpiler")!);
         }
         Console.WriteLine("LimitNetworking checks passed=" + passed);
         return 0;

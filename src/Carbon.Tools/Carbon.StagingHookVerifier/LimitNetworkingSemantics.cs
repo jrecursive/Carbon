@@ -38,11 +38,19 @@ internal static class LimitNetworkingSemantics
                 int effect = Enumerable.Range(start + 3, after.Count - start - 3)
                     .First(i => Call(after[i], "BaseProjectile", "CreateProjectileEffectClientside"));
                 int player = Local(after[start]);
-                if (player < 0 || target.GetMethodBody()!.LocalVariables[player].LocalType.FullName != "BasePlayer" ||
-                    !Call(after[start - 1], "BasePlayer", "NoteFiredProjectile") ||
+                int projectile = start >= 4 ? Local(after[start - 4]) : -1;
+                if (start < 6 || player < 0 || target.GetMethodBody()!.LocalVariables[player].LocalType.FullName != "BasePlayer" ||
+                    !Call(after[start - 6], "BasePlayer", "NoteFiredProjectile") ||
+                    Local(after[start - 5]) != player || projectile < 0 ||
+                    target.GetMethodBody()!.LocalVariables[projectile].LocalType.FullName != "ProtoBuf.ProjectileShoot+Projectile" ||
+                    after[start - 3].opcode != OpCodes.Ldfld ||
+                    after[start - 3].operand is not FieldInfo projectileId || projectileId.Name != "projectileID" ||
+                    projectileId.DeclaringType != target.GetMethodBody()!.LocalVariables[projectile].LocalType ||
+                    !Call(after[start - 2], "BasePlayer", "HasFiredProjectile") ||
+                    !IsFalse(after[start - 1]) || Target(after, after[start - 1]) != effect + 1 ||
                     !IsTrue(after[start + 2]) || Target(after, after[start + 2]) != effect + 1 ||
                     after[start + 3].opcode != OpCodes.Ldarg_0)
-                    Fail("Projectile guard must follow projectile accounting and skip only clientside projectile FX.");
+                    Fail("Projectile guard must follow projectile accounting and the native fired-projectile check, skipping only clientside projectile FX.");
                 Unchanged(before, after, start, 3);
                 break;
             }

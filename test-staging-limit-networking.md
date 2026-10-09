@@ -7,8 +7,9 @@ Harmony dependency. No Rust process or game method is executed.
 
 The test extracts all six actual generated base/companion transpilers for
 LimitNetworkingNoEffect patches 1–3 and composes them with raw and publicized
-installed IL. Eleven checks per assembly validate the production semantic guard,
-seven unsafe mutations, and real CLR installation of the headshot base/patch.
+installed IL. Fourteen checks per assembly validate the production semantic guard,
+nine unsafe mutations, and real CLR installation of the headshot and projectile
+base/patch pairs.
 Teardown removes the dependent patch before its base to avoid temporarily applying
 base-relative offsets to an unprefixed method.
 
@@ -18,6 +19,11 @@ player. Patch 3 uses the actual HitInfo.InitiatorPlayer local; null/unlimited
 initiators retain the native headshot effect, while limited initiators skip only
 Effect.server.Run. Damage, flinch signals, statistics, spectator RPCs and all native
 instructions outside the insertion must remain unchanged.
+
+For Rust build 25830079, patch 2 also retains the native
+`HasFiredProjectile` check after projectile accounting. The semantic guard rejects
+a removed or reversed native check and requires both native and limited-player
+branches to skip the same effect block.
 
 The staging overlay anchors patch 3 before the headshot prefab argument block,
 accounting for Carbon's actual six-instruction IOnBasePlayerAttacked prefix.

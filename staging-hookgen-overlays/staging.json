@@ -37,9 +37,10 @@
     },
     {
       "name": "OnEntityBuilt",
-      "reason": "Installed staging construction target returns BaseEntity.",
+      "reason": "Rust build 25830079 adds failed-placement diagnostics; notify at the first instruction of the non-null completed-placement branch, preserving Planner/GameObject arguments and the native BaseEntity return.",
       "set": {
-        "Signature.ReturnType": "BaseEntity"
+        "Signature.ReturnType": "BaseEntity",
+        "InjectionIndex": 199
       }
     },
     {
@@ -82,6 +83,42 @@
       "reason": "Installed staging PlayerMetabolism.ServerUpdate returns bool.",
       "set": {
         "Signature.ReturnType": "System.Boolean"
+      }
+    },
+    {
+      "name": "OnBuildingPrivilege",
+      "reason": "Rust build 25830079 adds ignorePosition to the native privilege lookup; bind the new signature while preserving the existing entity/bounds/cache/duration/exclusion hook arguments.",
+      "set": {
+        "Signature.Parameters": [
+          "OBB",
+          "System.Boolean",
+          "System.Single",
+          "BuildingPrivlidge",
+          "System.Boolean"
+        ],
+        "ArgumentBehavior": 4,
+        "ArgumentString": "this, a0, a1, a2, a3"
+      }
+    },
+    {
+      "name": "OnFeedbackReported",
+      "reason": "Rust build 25830079 renumbers the feedback-report async state machine to d__781; the report data locals and notification point remain unchanged.",
+      "set": {
+        "TypeName": "BasePlayer/<OnFeedbackReport>d__781"
+      }
+    },
+    {
+      "name": "OnFeedbackReported [patch]",
+      "reason": "Rust build 25830079 renumbers the same feedback-report state machine targeted by its prerequisite report-gate patch to d__781.",
+      "set": {
+        "TypeName": "BasePlayer/<OnFeedbackReport>d__781"
+      }
+    },
+    {
+      "name": "OnPlayerReported",
+      "reason": "Rust build 25830079 renumbers the player-report async state machine to d__780; the report data locals and notification point remain unchanged.",
+      "set": {
+        "TypeName": "BasePlayer/<OnPlayerReported>d__780"
       }
     },
     {
@@ -228,6 +265,82 @@
           {
             "OpCode": "ret",
             "OpType": "None"
+          }
+        ]
+      }
+    },
+    {
+      "name": "OnQuarryGather",
+      "reason": "Rust build 25830079 changes quarry gathering IL; notify after native item creation/analytics and before MoveToContainer arguments, removing a vetoed item and continuing the native resource loop without switching off the quarry.",
+      "set": {
+        "InjectionIndex": 107,
+        "Instructions": [
+          {
+            "OpCode": "ldstr",
+            "OpType": "String",
+            "Operand": "OnQuarryGather"
+          },
+          {
+            "OpCode": "ldarg_0",
+            "OpType": "None"
+          },
+          {
+            "OpCode": "ldloc",
+            "OpType": "Variable",
+            "Operand": 7
+          },
+          {
+            "OpCode": "call",
+            "OpType": "Method",
+            "Operand": "Oxide.Core|Oxide.Core.Interface|CallHook(System.String,System.Object,System.Object)"
+          },
+          {
+            "OpCode": "brfalse_s",
+            "OpType": "Instruction",
+            "Operand": 107
+          },
+          {
+            "OpCode": "ldloc",
+            "OpType": "Variable",
+            "Operand": 7
+          },
+          {
+            "OpCode": "ldc_r4",
+            "OpType": "Single",
+            "Operand": "0.0"
+          },
+          {
+            "OpCode": "callvirt",
+            "OpType": "Method",
+            "Operand": "Assembly-CSharp|Item|Remove(System.Single)"
+          },
+          {
+            "OpCode": "br_s",
+            "OpType": "Instruction",
+            "Operand": 126
+          }
+        ]
+      }
+    },
+    {
+      "name": "LimitNetworkingNoEffect [patch 2]",
+      "reason": "Rust build 25830079 checks HasFiredProjectile after projectile accounting; suppress only clientside projectile effects after that native check, accounting for the actual eight-instruction OnWeaponFired prefix.",
+      "set": {
+        "InjectionIndex": 259,
+        "Instructions": [
+          {
+            "OpCode": "ldloc_0",
+            "OpType": "None"
+          },
+          {
+            "OpCode": "callvirt",
+            "OpType": "Method",
+            "Operand": "Assembly-CSharp|BaseNetworkable|get_limitNetworking"
+          },
+          {
+            "OpCode": "brtrue_s",
+            "OpType": "Instruction",
+            "Operand": 278
           }
         ]
       }

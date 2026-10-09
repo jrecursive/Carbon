@@ -33,3 +33,28 @@ conditions/actions, now using ConversationData local 6 and ResponseNode local
 Use `verify-staging-hooks.sh --dump-hook` to inspect the native indexed IL, and
 focused `--requested-only --install-hook` checks during repairs before the full
 qualification. Keep the generation skip list unchanged for these repairs.
+
+Build 25830079 renumbers the unchanged report bodies again, to
+`OnFeedbackReport>d__781` / `OnPlayerReported>d__780`. A native ILSpy 9.1.0.7988
+comparison against the October 1 qualified reference confirms identical report
+instructions, locals, operands and exception boundaries after normalizing only
+the type sequence numbers and method RVA comments. The three report overlays
+therefore change target type names only.
+
+The same build adds `ignorePosition` to
+`BaseEntity.GetBuildingPrivilege(OBB, bool, float, BuildingPrivlidge, bool)`.
+The privilege overlay updates the native signature but passes the original
+entity, bounds, cache flag, duration and exclusion arguments to plugins. The
+new native flag continues through the original method when plugins return null.
+
+Failed-placement toast/log diagnostics move `OnEntityBuilt` to native instruction
+199, immediately after the successful GameObject null check. Quarry gathering
+now calls `OnQuarryGather` at instruction 107, after item creation and analytics
+but before pushing container-move arguments. A veto removes the same local-7
+item and resumes the native loop at instruction 126 without disabling the quarry.
+
+`BaseProjectile.CLProject` now gates clientside effects on
+`BasePlayer.HasFiredProjectile` after `NoteFiredProjectile`. Patch 2 preserves
+both operations: its insertion is 259 and its skip target is 278 in the body
+with the actual eight-instruction `OnWeaponFired` dependency installed. The
+semantic guard explicitly requires the new native check and its loop target.
