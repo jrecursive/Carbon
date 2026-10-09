@@ -27,6 +27,7 @@ public class HarmonyConverter : BaseConverter
 	    new OxideTypeRef(),
 
 	    // il switch
+	    new PlayerInventoryProxyPatch(),
 	    new OxideILSwitch(),
 
 	    // harmony

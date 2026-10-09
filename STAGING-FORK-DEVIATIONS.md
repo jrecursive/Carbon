@@ -20,6 +20,26 @@ production or silently assume an official build includes a fork fix.
   dispatch lifetime and returns them to the pool after the call. This generic
   ownership fix requires explicit review in each public port, independently of
   staging-specific IL bindings.
+- `PlayerInventoryProxyPatch` adapts one confirmed legacy ChaosNPC coroutine
+  instruction pair on installed staging build `25830079` (`2635.289.1`). Raw
+  ChaosNPC SHA-256 `f11d3b88887a9b93dc272e56f8b7207b5a6e917e0e7ccb09a6dafae888e9f270`
+  and the previous converted copy both call `BasePlayer.get_inventory()` at
+  `IL_03e1`, followed by `UnityEngine.Object.op_Implicit(Object)` at `IL_03e6`.
+  Current `PlayerInventory` is an `EntityComponentProxy<BasePlayer>`, with no
+  Unity object inheritance. Type-load success does not verify this method body.
+  The Oxide and Harmony converters replace only a direct typed inventory
+  getter/field followed by that exact Unity truthiness call, keeping the same
+  instruction and branch/exception targets. The stable Carbon.Common helper
+  `Carbon.Compatibility.LegacyPlayerInventory.Exists(PlayerInventory)` checks
+  managed inventory presence and its real owner's Unity lifetime; it adds no
+  destruction policy. Genuine Unity operators and raw vendor DLLs are unchanged.
+  The patch skips a Unity inventory layout and rejects an unreviewed nonproxy
+  layout. `util/carbon-compat-check` in the platform repository checks the real
+  raw and converted vendor IL, the one replacement, its typed target, and safe
+  null/ownerless calls. Remove this deviation when the official vendor or Carbon
+  conversion handles the proxy correctly and the same exact-input checks pass.
+  Public ports must inspect their actual inventory inheritance and vendor IL
+  before deciding whether to carry it.
 - The September 19 hook refresh includes report state-machine, RCON admission,
   explosive, construction and limited-networking corrections. The corresponding
   verifier checks ordering and cancellation semantics against the exact Rust
@@ -47,8 +67,8 @@ production or silently assume an official build includes a fork fix.
 - The offline verifier can structurally validate every generated hook and
   install-test every dynamic hook in isolated child processes with generated
   hook suppression disabled.
-- The verifier owns its compatibility expectations locally. No staging
-  compatibility manifest or IL shim is compiled into the Carbon runtime.
+- The verifier owns its hook compatibility expectations locally. No staging
+  hook compatibility manifest or hook IL shim is compiled into the Carbon runtime.
 - `OnMarketplaceTerminalPurchase` uses semantic IL anchors instead of fixed
   instruction/local indexes. It dispatches after the RPC vending/order inputs
   are validated and before delivery eligibility, power, fees, or transaction
@@ -81,7 +101,8 @@ production or silently assume an official build includes a fork fix.
 - Publicizer resolver changes, script compilation resolver changes, hookgen
   helper heuristics, generic/byref hook policies, and build bootstrap changes
   that canonical Carbon now implements are not carried.
-- Runtime staging hook suppression and compatibility shims are not carried.
+- Broad runtime staging hook suppression and compatibility shims are not carried;
+  the scoped inventory vendor conversion above is an explicitly reviewed exception.
 - August-only Recycler, Research, Newtonsoft, Vault, timer, and Carbon core
   disconnect guards are not carried because canonical staging now owns the
   corresponding compatibility behavior.
