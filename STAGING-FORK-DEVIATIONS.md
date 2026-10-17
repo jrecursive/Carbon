@@ -16,6 +16,18 @@ production or silently assume an official build includes a fork fix.
 
 ## Retained deviations
 
+- Rust build `25999658` replaces `NPCTalking.Server_ResponsePressed(RPCMessage)`
+  with the typed `Server_HandleResponse(BasePlayer, int, int, uint, uint,
+  NetworkableId)` called by the owner-only player RPC. Two exact overlays retain
+  `OnNpcConversationRespond` after native conversation, visible-choice, bounds and
+  response-null admission and before conditions/actions; every non-null result
+  still cancels. `OnNpcConversationResponded` retains its dependency and follows
+  `ForceSpeechNode`, while ended conversations return before it. Both callbacks
+  retain NPC/player/conversation/response arguments. The authoritative verifier
+  composes both actual generated transpilers and checks native owner admission,
+  callback arguments, veto continuation and completed/ended ordering. Keep the
+  existing 45 generator skips unchanged. Remove the overlays when reviewed
+  upstream metadata carries these exact contracts and the same checks pass.
 - `HookCallerInternal` owns reflected-overload argument buffers through the
   dispatch lifetime and returns them to the pool after the call. This generic
   ownership fix requires explicit review in each public port, independently of
@@ -108,6 +120,14 @@ production or silently assume an official build includes a fork fix.
   corresponding compatibility behavior.
 
 ## Review rule
+
+The October 17 Native merge retains protocol 5 and the official per-thread
+recording architecture together with bounded opt-in diagnostics. Its library
+crate uses the Rust identifier `carbon_native` to compile without the inherited
+crate-name warning. Build/profiler packaging renames the resulting artifacts to
+the established runtime filenames `libCarbonNative.so` and `CarbonNative.dll`;
+exported C symbols and loader names remain unchanged. Remove this packaging
+deviation when upstream adopts the same warning-free crate naming.
 
 Before adding a deviation, first compare current canonical staging and test the
 failure against the installed Rust staging assemblies. Prefer an OPJ metadata

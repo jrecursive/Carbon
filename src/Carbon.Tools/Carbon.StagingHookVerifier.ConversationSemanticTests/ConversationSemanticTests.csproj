@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net10.0</TargetFramework><ImplicitUsings>enable</ImplicitUsings><Nullable>enable</Nullable><NuGetAudit>false</NuGetAudit></PropertyGroup>
+  <ItemGroup><PackageReference Include="Lib.Harmony" Version="2.4.2" /></ItemGroup>
+  <ItemGroup>
+    <Compile Include="../Carbon.StagingHookVerifier/ConversationResponseSemantics.cs" Link="ConversationResponseSemantics.cs" />
+    <Compile Include="$(GeneratedHookSources)/GeneratedVeto.cs" Link="GeneratedVeto.cs" />
+    <Compile Include="$(GeneratedHookSources)/GeneratedCompleted.cs" Link="GeneratedCompleted.cs" />
+  </ItemGroup>
+</Project>

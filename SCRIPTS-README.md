@@ -186,3 +186,7 @@ so would resurrect stale implementations on a later sync.
 - `./test-staging-construction-hooks.sh`: proves pre-spawn construction veto,
   callback arguments and cleanup through the extracted native placement helper;
   see [test-staging-construction-hooks.md](test-staging-construction-hooks.md).
+- `./test-staging-conversation-hooks.sh`: composes the generated response hooks,
+  proves owner/native admission, veto and completion ordering, installs both
+  transpilers and rejects unsafe mutations against publicized/raw references;
+  see [test-staging-conversation-hooks.md](test-staging-conversation-hooks.md).

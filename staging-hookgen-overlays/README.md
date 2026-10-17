@@ -1,5 +1,22 @@
 # Staging Hookgen OPJ Overlays
 
+Build `25999658` moves the unchanged report async bodies to
+`OnFeedbackReport>d__795` / `OnPlayerReported>d__794`. A Cecil comparison against
+the October 9 qualified native assemblies finds identical instructions, operands,
+local types and indexed branch targets after normalizing only the target type's
+sequence number. The three report overlays therefore change target names only.
+
+That build also replaces `NPCTalking.Server_ResponsePressed(RPCMessage)` with the
+typed `Server_HandleResponse(BasePlayer, int, int, uint, uint, NetworkableId)`.
+The two response overlays preserve the regular-response veto after native
+conversation/visible-choice/bounds/null admission, with arguments `this, a0, l0,
+l14`, at native instruction 189. The completed notification remains immediately
+after `ForceSpeechNode`, at 248 including the actual nine-instruction veto
+dependency. Native `ForceEndConversation` still returns before that notification.
+The authoritative verifier and `test-staging-conversation-hooks.sh` compose both
+generated transpilers and guard these contracts; the 45 expected skips stay
+unchanged.
+
 `build-staging-hooks.sh` fetches `Rust.opj` from the Oxide.Rust staging branch and applies the overlay in this directory before running `Carbon.Hooks.Generator`.
 
 Use overlays only when the upstream staging OPJ is stale for the installed staging server DLLs. Each patch must target one exact OPJ hook `Name`, include a reason, and set only the fields needed to make generated hooks match the installed staging IL.

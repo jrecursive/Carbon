@@ -91,7 +91,7 @@ if (isUnix)
 	Files.Copy(Path(Home, "tools", "helpers", "carbon.sh"), Path(Home, "release", ".tmp", target));
 	Files.Copy(Path(Home, "tools", "helpers", "environment.sh"), Path(Home, "release", ".tmp", target, "carbon", "tools"));
 	Files.Copy(Path(Home, "tools", "unitydoorstop", "linux", "x64", "libdoorstop.so"), Path(Home, "release", ".tmp", target));
-	Files.Copy(Path(Home, "src", "Carbon.Native", "target", "x86_64-unknown-linux-gnu", cargoTarget, "libCarbonNative.so"), Path(Home, "release", ".tmp", target, "carbon", "native"), optional: true);
+	Files.Copy(Path(Home, "src", "Carbon.Native", "target", "x86_64-unknown-linux-gnu", cargoTarget, "libcarbon_native.so"), Path(Home, "release", ".tmp", target, "carbon", "native", "libCarbonNative.so"), optional: true);
 
 	if (!noArchive)
 	{
@@ -102,7 +102,7 @@ else
 {
 	Files.Copy(Path(Home, "tools", "helpers", "doorstop_config.ini"), Path(Home, "release", ".tmp", target));
 	Files.Copy(Path(Home, "tools", "unitydoorstop", "windows", "x64", "doorstop.dll"), Path(Home, "release", ".tmp", target, "winhttp.dll"));
-	Files.Copy(Path(Home, "src", "Carbon.Native", "target", "x86_64-pc-windows-gnu", cargoTarget, "CarbonNative.dll"), Path(Home, "release", ".tmp", target, "carbon", "native"), optional: true);
+	Files.Copy(Path(Home, "src", "Carbon.Native", "target", "x86_64-pc-windows-gnu", cargoTarget, "carbon_native.dll"), Path(Home, "release", ".tmp", target, "carbon", "native", "CarbonNative.dll"), optional: true);
 
 	if (!noArchive)
 	{

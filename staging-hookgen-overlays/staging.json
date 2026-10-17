@@ -1,6 +1,40 @@
 {
   "patches": [
     {
+      "name": "OnNpcConversationRespond",
+      "reason": "Rust build 25999658 routes owner-only player response RPCs into the typed Server_HandleResponse method. Keep the selected regular-response veto after native conversation/visibility/bounds/null admission and before native conditions or actions.",
+      "set": {
+        "Signature.Name": "Server_HandleResponse",
+        "Signature.Parameters": [
+          "BasePlayer",
+          "System.Int32",
+          "System.Int32",
+          "System.UInt32",
+          "System.UInt32",
+          "NetworkableId"
+        ],
+        "ArgumentString": "this, a0, l0, l14",
+        "InjectionIndex": 189
+      }
+    },
+    {
+      "name": "OnNpcConversationResponded",
+      "reason": "Retain the completed-response notification immediately after native ForceSpeechNode in Server_HandleResponse, with the same NPC/player/conversation/response arguments. Index248 includes the actual nine-instruction response-veto dependency; native ForceEndConversation still returns before this notification.",
+      "set": {
+        "Signature.Name": "Server_HandleResponse",
+        "Signature.Parameters": [
+          "BasePlayer",
+          "System.Int32",
+          "System.Int32",
+          "System.UInt32",
+          "System.UInt32",
+          "NetworkableId"
+        ],
+        "ArgumentString": "this, a0, l0, l14",
+        "InjectionIndex": 248
+      }
+    },
+    {
       "name": "OnInterferenceUpdate",
       "reason": "Installed staging AutoTurret.RecalculateInterference returns bool.",
       "set": {
@@ -102,23 +136,23 @@
     },
     {
       "name": "OnFeedbackReported",
-      "reason": "Rust build 25830079 renumbers the feedback-report async state machine to d__781; the report data locals and notification point remain unchanged.",
+      "reason": "Rust build 25999658 renumbers the feedback-report async state machine to d__795; native IL, locals, branch targets and report notification ordering match build25830079 after normalizing only this type's sequence number.",
       "set": {
-        "TypeName": "BasePlayer/<OnFeedbackReport>d__781"
+        "TypeName": "BasePlayer/<OnFeedbackReport>d__795"
       }
     },
     {
       "name": "OnFeedbackReported [patch]",
-      "reason": "Rust build 25830079 renumbers the same feedback-report state machine targeted by its prerequisite report-gate patch to d__781.",
+      "reason": "Rust build 25999658 renumbers the same unchanged feedback-report state machine targeted by its prerequisite report-gate patch to d__795.",
       "set": {
-        "TypeName": "BasePlayer/<OnFeedbackReport>d__781"
+        "TypeName": "BasePlayer/<OnFeedbackReport>d__795"
       }
     },
     {
       "name": "OnPlayerReported",
-      "reason": "Rust build 25830079 renumbers the player-report async state machine to d__780; the report data locals and notification point remain unchanged.",
+      "reason": "Rust build 25999658 renumbers the player-report async state machine to d__794; native IL, locals, branch targets and report notification ordering match build25830079 after normalizing only this type's sequence number.",
       "set": {
-        "TypeName": "BasePlayer/<OnPlayerReported>d__780"
+        "TypeName": "BasePlayer/<OnPlayerReported>d__794"
       }
     },
     {
