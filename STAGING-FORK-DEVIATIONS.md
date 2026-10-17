@@ -16,6 +16,31 @@ production or silently assume an official build includes a fork fix.
 
 ## Retained deviations
 
+- Rust build `25999658` adds a second native hacked-state guard and shifts the
+  Frankenstein table distance calculation. Exact overlays move `CanHackCrate`
+  and `OnFrankensteinPetSleep [FrankensteinTable]` to admitted empty-stack points
+  before native analytics/ownership/hacking or item-transfer/removal/destruction
+  effects. Both retain their existing any-non-null veto contract and argument
+  order. Native-veto semantic checks and mutation regressions guard admission,
+  empty-stack placement and the untouched native side effects.
+- The same build contracts `RelationshipManager.UpdateAcquaintancesFor` after
+  removing an occlusion block. Its limited-networking patch retains the typed
+  foreach peer and skips acquaintance/last-seen updates to the native enumerator
+  continuation, preserving iterator disposal and pooled-list cleanup. The guard
+  compares the complete native/transformed instruction and exception structure
+  outside the exact three-instruction addition.
+- `LivestockAnimal.AddFamiliarity` now takes only `ulong userId, float seconds`;
+  the removed `FamiliarityReason` enum is not fabricated. The two familiarity
+  hook metadata entries target that signature. A scoped generator policy emits
+  admission as a null-only bool prefix and completion as an
+  [`__runOriginal`-guarded postfix](https://harmony.pardeike.net/articles/patching-injections.html).
+  This covers all six current native return paths and suppresses completion
+  after a veto or native exception. Callbacks expose the available animal,
+  user ID and seconds arguments; no maintained plugin consumes the removed
+  reason argument. Static generated-method checks, actual native installation
+  and an inert six-return Harmony fixture guard callback order and argument
+  identity. Remove this policy when canonical generation preserves these
+  contracts on the current native signature and the same checks pass.
 - Rust build `25999658` replaces `NPCTalking.Server_ResponsePressed(RPCMessage)`
   with the typed `Server_HandleResponse(BasePlayer, int, int, uint, uint,
   NetworkableId)` called by the owner-only player RPC. Two exact overlays retain
@@ -89,7 +114,7 @@ production or silently assume an official build includes a fork fix.
 - The verifier checks that `CorePlugin.IOnLoseCondition` copies a plugin-mutated
   by-ref amount back before applying condition loss, and that generated
   `OnPlayerDisconnected` remains inside Rust's non-null player branch.
-- One generator policy is retained for `CanBeTargeted [FlameTurret]`: the main
+- A generator policy is retained for `CanBeTargeted [FlameTurret]`: the main
   hook emits a stack-safe leave path and its obsolete cleanup dependency emits
   a no-op transpiler. Multiple current plugins subscribe to this canonical hook,
   and the official OPJ-generated IL fails installation on the installed staging
@@ -107,8 +132,8 @@ production or silently assume an official build includes a fork fix.
 - The custom `c.adminpanel` command is not carried. Canonical Carbon's `cpanel`
   and `cp` commands remain authoritative.
 - Custom `HookEx` and `PatchManager` runtime policies are not carried. The old
-  broad staging `HookPolicies` set is dropped except for the single documented
-  FlameTurret generator policy above. The exhaustive offline install test is
+  broad staging `HookPolicies` set is dropped except for the documented
+  FlameTurret and two familiarity generator policies above. The exhaustive offline install test is
   the evidence gate for any future exception.
 - Publicizer resolver changes, script compilation resolver changes, hookgen
   helper heuristics, generic/byref hook policies, and build bootstrap changes

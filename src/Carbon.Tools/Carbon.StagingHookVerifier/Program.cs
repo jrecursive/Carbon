@@ -676,6 +676,9 @@ internal static partial class Program
 		VerifyWebRconAdmissionSemantics(hooks, failures, stats);
 		VerifyLimitNetworkingSemantics(hooks, failures, stats);
 		VerifyConversationResponseSemantics(hooks, failures, stats);
+		VerifyNativeVetoAdmissionSemantics(hooks, failures, stats);
+		VerifyAcquaintanceNetworkingSemantics(hooks, failures, stats);
+		VerifyLivestockFamiliaritySemantics(hooks, failures, stats);
 	}
 
 	private static void VerifyOnPlayerDisconnectedSemantics(

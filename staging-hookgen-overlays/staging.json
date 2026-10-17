@@ -1,6 +1,37 @@
 {
   "patches": [
     {
+      "name": "CanHackCrate",
+      "reason": "Rust build 25999658 adds native IsFullyHacked admission. Veto only the empty-stack admitted branch after both hack-state gates and before analytics, hacker ownership, achievement or StartHacking side effects.",
+      "set": { "InjectionIndex": 7 }
+    },
+    {
+      "name": "OnFrankensteinPetSleep [FrankensteinTable]",
+      "reason": "Rust build 25999658 shifts the completed owner/inventory/privilege/pet/distance admission branch. Keep the existing non-null cancellation contract on its empty-stack instruction before returning items, removals, networking and pet destruction.",
+      "set": { "InjectionIndex": 41 }
+    },
+    {
+      "name": "LimitNetworkingAcquaintances [patch]",
+      "reason": "Rust build 25999658 removes the occlusion block and contracts UpdateAcquaintancesFor. A limited-networking peer must skip acquaintance/lastSeen effects to the existing enumerator MoveNext at native96, retaining finally and pooled-list cleanup.",
+      "set": {
+        "Instructions": [
+          { "OpCode": "ldloc_3", "OpType": "None" },
+          { "OpCode": "callvirt", "OpType": "Method", "Operand": "Assembly-CSharp|BaseNetworkable|get_limitNetworking" },
+          { "OpCode": "brtrue", "OpType": "Instruction", "Operand": 96 }
+        ]
+      }
+    },
+    {
+      "name": "OnLivestockAnimalFamiliarityAdd",
+      "reason": "Rust build 25999658 removes FamiliarityReason and inlines the credit body into AddFamiliarity(ulong,float). The scoped generator policy preserves entry veto with the available animal/userId/seconds arguments.",
+      "set": { "Signature.Parameters": ["System.UInt64", "System.Single"] }
+    },
+    {
+      "name": "OnLivestockAnimalFamiliarityAdded",
+      "reason": "Rust build 25999658 replaces the wrapper with a six-return native credit body and removes FamiliarityReason. The scoped generator policy emits a completion postfix guarded by __runOriginal instead of using the obsolete single IL index.",
+      "set": { "Signature.Parameters": ["System.UInt64", "System.Single"] }
+    },
+    {
       "name": "OnNpcConversationRespond",
       "reason": "Rust build 25999658 routes owner-only player response RPCs into the typed Server_HandleResponse method. Keep the selected regular-response veto after native conversation/visibility/bounds/null admission and before native conditions or actions.",
       "set": {

@@ -190,3 +190,12 @@ so would resurrect stale implementations on a later sync.
   proves owner/native admission, veto and completion ordering, installs both
   transpilers and rejects unsafe mutations against publicized/raw references;
   see [test-staging-conversation-hooks.md](test-staging-conversation-hooks.md).
+- `./test-staging-acquaintance-networking.sh`: checks the typed peer exclusion,
+  exact native loop continuation and preserved iterator/pool cleanup; see
+  [test-staging-acquaintance-networking.md](test-staging-acquaintance-networking.md).
+- `./test-staging-livestock-familiarity.sh`: checks generated admission/completion
+  patches and runs their six-return cancellation fixture; see
+  [test-staging-livestock-familiarity.md](test-staging-livestock-familiarity.md).
+- `./test-staging-native-veto-admission.sh`: verifies crate hacking and
+  Frankenstein table cancellation after native admission and before effects;
+  see [test-staging-native-veto-admission.md](test-staging-native-veto-admission.md).

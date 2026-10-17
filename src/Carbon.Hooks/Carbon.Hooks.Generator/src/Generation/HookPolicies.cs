@@ -85,9 +85,37 @@ internal static class HookPolicies
 
 	public static bool TryGeneratePolicyBody(StringBuilder body, HookDef.Data hook)
 	{
-		return TryGenerateOnClanCreatedAsyncSuccessRetargetPolicy(body, hook)
+		return TryGenerateLivestockFamiliarityPolicy(body, hook)
+		       || TryGenerateOnClanCreatedAsyncSuccessRetargetPolicy(body, hook)
 		       || TryGenerateFlameTurretCanBeTargetedPolicy(body, hook)
 		       || TryGenerateFlameTurretTargetCleanupPolicy(body, hook);
+	}
+
+	private static bool TryGenerateLivestockFamiliarityPolicy(StringBuilder body, HookDef.Data hook)
+	{
+		if (hook.TypeName != "Rust.Ai.Gen2.LivestockAnimal" || hook.Signature.Name != "AddFamiliarity" ||
+		    !hook.Signature.Parameters.SequenceEqual(new[] { "System.UInt64", "System.Single" }) ||
+		    hook.Name != hook.HookName || hook.Name is not ("OnLivestockAnimalFamiliarityAdd" or "OnLivestockAnimalFamiliarityAdded"))
+			return false;
+
+		Helper.Parameters.Add(("self", Tools.TypeByNameEx(hook.TypeName) ?? throw new InvalidOperationException("Livestock familiarity target type is missing.")));
+		Helper.Parameters.Add(("userId", typeof(ulong)));
+		Helper.Parameters.Add(("seconds", typeof(float)));
+		if (hook.Name == "OnLivestockAnimalFamiliarityAdd")
+		{
+			Helper.ReturnType = typeof(void);
+			body.AppendLine("public static bool Prefix(object __instance, ulong userId, float seconds) {");
+			body.AppendLine($"return HookCaller.CallStaticHook({HookStringPool.GetOrAdd(hook.HookName)}u, __instance, userId, seconds) == null;");
+		}
+		else
+		{
+			Helper.ReturnDiscarded = true;
+			body.AppendLine("public static void Postfix(object __instance, ulong userId, float seconds, bool __runOriginal) {");
+			body.AppendLine($"if (__runOriginal) HookCaller.CallStaticHook({HookStringPool.GetOrAdd(hook.HookName)}u, __instance, userId, seconds);");
+		}
+		body.AppendLine("}");
+		CloseGeneratedHookBody(body);
+		return true;
 	}
 
 	public static bool TryEmitModifyAnchorPrelude(StringBuilder body, HookDef.Data hook)

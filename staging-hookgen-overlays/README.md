@@ -6,6 +6,17 @@ the October 9 qualified native assemblies finds identical instructions, operands
 local types and indexed branch targets after normalizing only the target type's
 sequence number. The three report overlays therefore change target names only.
 
+Strict installation additionally found a newly added fully-hacked admission
+gate in `RPC_Hack` and shifted Frankenstein table distance evaluation. Their
+veto injections move to admitted empty-stack native instructions 7 and 41,
+respectively, before any gameplay side effect. The acquaintance networking
+branch now lands on native enumerator `MoveNext` at 96 after the removed
+occlusion block, retaining its cleanup. The familiarity hook signatures lose
+the removed reason enum; their generator policy supplies prefix admission and
+native-execution-gated postfix completion across the inlined six-return body.
+Dedicated native-veto, acquaintance and familiarity semantic wrappers cover
+these repairs. None changes the expected skip list.
+
 That build also replaces `NPCTalking.Server_ResponsePressed(RPCMessage)` with the
 typed `Server_HandleResponse(BasePlayer, int, int, uint, uint, NetworkableId)`.
 The two response overlays preserve the regular-response veto after native
