@@ -16,6 +16,7 @@ This catches the failure classes that otherwise appear during startup:
 - explosive notifications passing a prediction ID or an uninitialized entity, or running before spawn/after item consumption
 - `OnEntityBuilt` escaping its successful placement branch or passing the wrong GameObject
 - `OnConstructionPlace` losing the pre-spawn veto, exact callback arguments or native cleanup paths
+- `OnCollectiblePickedup` passing the consume component instead of the created Item, or firing only in the receiver-null drop branch
 
 Required semantic checks run in every normal parent verification, including
 `--requested-only`. They execute transpilers over the installed Rust IL and
@@ -33,6 +34,14 @@ cleanup/null-return before native helper execution. Run
 `./test-staging-construction-hooks.sh` against freshly generated source for CLR
 installation, mutation tests and executed veto-path cases. Its sibling document
 records the current refactor's earlier placement relative to skin/health setup.
+
+Collectible checks compose the entry veto with the completed-pickup notification.
+They require the exact created Item after receiver analytics and before native
+delivery, preserve null-item/null-receiver/consumed-food exclusions and the
+multi-output loop, and compare every original opcode, operand and branch. Run
+`./test-staging-collectible-hooks.sh --hooks-dir PATH` against a candidate's exact
+Oxide hook DLL; its sibling document covers compatible Carbon/Rust paths and
+the focused stale-offset/local/control-flow rejection cases.
 
 The legacy focused compatibility mode is still available with `--focused-compat`, but strict staging upgrades should not use it.
 

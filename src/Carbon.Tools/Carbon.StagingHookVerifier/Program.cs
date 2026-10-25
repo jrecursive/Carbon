@@ -672,6 +672,7 @@ internal static partial class Program
 		VerifyMarketplaceTerminalPurchaseSemantics(hooks, failures, stats);
 		VerifyOnLoseConditionSemantics(failures, stats);
 		VerifySpawnHookSemantics(hooks, failures, stats);
+		VerifyCollectiblePickupSemantics(hooks, failures, stats);
 		VerifyConstructionPlacementSemantics(hooks, failures, stats);
 		VerifyWebRconAdmissionSemantics(hooks, failures, stats);
 		VerifyLimitNetworkingSemantics(hooks, failures, stats);

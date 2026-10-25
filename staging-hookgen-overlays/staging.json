@@ -1,6 +1,14 @@
 {
   "patches": [
     {
+      "name": "OnCollectiblePickedup",
+      "reason": "Installed staging CollectibleEntity.DoPickup creates Item in local8; local9 is ItemModConsume. Notify after successful receiver analytics and before GiveItem at native119, plus the nine-instruction OnCollectiblePickup dependency, instead of native137 in the receiver-null drop branch.",
+      "set": {
+        "ArgumentString": "this, a0, l8",
+        "InjectionIndex": 128
+      }
+    },
+    {
       "name": "CanHackCrate",
       "reason": "Rust build 25999658 adds native IsFullyHacked admission. Veto only the empty-stack admitted branch after both hack-state gates and before analytics, hacker ownership, achievement or StartHacking side effects.",
       "set": { "InjectionIndex": 7 }

@@ -1,5 +1,17 @@
 # Staging Hookgen OPJ Overlays
 
+The October 24 collectible review found two stale `OnCollectiblePickedup`
+fields against installed build `25999658`: the created `Item` is local 8 while
+local 9 is `ItemModConsume`, and the old composed instruction 146 falls inside
+the receiver-null drop branch. The overlay now uses `this, a0, l8` at instruction
+128: native 119, after successful receiver analytics and before `GiveItem`, plus
+the existing pickup-veto dependency's nine instructions. It preserves ordinary
+player harvests, item-null/eat/null-receiver exits and every native output-loop
+and kill effect. The required verifier composes both hooks and rejects the old
+drop-only placement and wrong local; run `test-staging-collectible-hooks.sh`
+against the exact candidate DLL for focused raw/publicized and CLR-install
+regressions. The skip list remains unchanged.
+
 Build `25999658` moves the unchanged report async bodies to
 `OnFeedbackReport>d__795` / `OnPlayerReported>d__794`. A Cecil comparison against
 the October 9 qualified native assemblies finds identical instructions, operands,
