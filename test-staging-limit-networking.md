@@ -1,5 +1,10 @@
 # Limited-networking FX regression checks
 
+Rust build `26270245` routes projectile RPCs through
+`ProcessCLProject(RPCMessage, bool, BaseMountable)`. The generated notification,
+FX guard and verifier fixture target that exact shared processing method; native
+wrapper validation, mounted admission and projectile accounting remain intact.
+
 Run `./test-staging-limit-networking.sh --generated-dir PATH` against a candidate
 hook generator output. Defaults and `--managed` / `--raw-managed` options match
 the RCON semantic regression wrapper. Requires .NET 10, Python 3 and the existing

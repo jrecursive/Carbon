@@ -32,7 +32,9 @@ internal static class LimitNetworkingSemantics
             }
             case 2:
             {
-                if (target.DeclaringType?.FullName != "BaseProjectile" || target.Name != "CLProject")
+                if (target.DeclaringType?.FullName != "BaseProjectile" || target.Name != "ProcessCLProject" ||
+                    !target.GetParameters().Select(parameter => parameter.ParameterType.FullName)
+                        .SequenceEqual(new[] { "BaseEntity+RPCMessage", "System.Boolean", "BaseMountable" }))
                     Fail("Projectile guard target changed.");
                 int start = limit - 1;
                 int effect = Enumerable.Range(start + 3, after.Count - start - 3)

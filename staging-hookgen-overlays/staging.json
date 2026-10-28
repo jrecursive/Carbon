@@ -1,6 +1,36 @@
 {
   "patches": [
     {
+      "name": "OnContainerDropItems",
+      "reason": "Rust build 26270245 adds native DropUtil.DropItems scatter admission. Bind the available three-argument signature, retaining the existing container-only veto at native10 after null/drop-policy admission and before item mutation.",
+      "set": {
+        "Signature.Parameters": ["ItemContainer", "UnityEngine.Vector3", "System.Boolean"]
+      }
+    },
+    {
+      "name": "OnWeaponFired",
+      "reason": "Rust build 26270245 moves projectile processing from CLProject into ProcessCLProject(RPCMessage,bool,BaseMountable). Preserve the existing weapon/player/projectile-component/projectile-shoot callback immediately after native count admission and before the gesture check, now native146; the wrappers retain attack validation.",
+      "set": {
+        "Signature.Name": "ProcessCLProject",
+        "Signature.Parameters": ["BaseEntity/RPCMessage", "System.Boolean", "BaseMountable"],
+        "InjectionIndex": 146
+      }
+    },
+    {
+      "name": "OnPlayerUnvanished [Patch]",
+      "reason": "Rust build 26270245 exposes isInvisible as a property. Preserve the composed vanish/unvanish branch routing and its six-instruction guard, calling the native getter instead of resolving the removed field.",
+      "set": {
+        "Instructions": [
+          { "OpCode": "br", "OpType": "Instruction", "Operand": 148 },
+          { "OpCode": "ldloc_1", "OpType": "None" },
+          { "OpCode": "brtrue", "OpType": "Instruction", "Operand": 148 },
+          { "OpCode": "ldloc_0", "OpType": "None" },
+          { "OpCode": "callvirt", "OpType": "Method", "Operand": "Assembly-CSharp|BasePlayer|get_isInvisible" },
+          { "OpCode": "brfalse", "OpType": "Instruction", "Operand": 148 }
+        ]
+      }
+    },
+    {
       "name": "OnCollectiblePickedup",
       "reason": "Installed staging CollectibleEntity.DoPickup creates Item in local8; local9 is ItemModConsume. Notify after successful receiver analytics and before GiveItem at native119, plus the nine-instruction OnCollectiblePickup dependency, instead of native137 in the receiver-null drop branch.",
       "set": {
@@ -422,9 +452,11 @@
     },
     {
       "name": "LimitNetworkingNoEffect [patch 2]",
-      "reason": "Rust build 25830079 checks HasFiredProjectile after projectile accounting; suppress only clientside projectile effects after that native check, accounting for the actual eight-instruction OnWeaponFired prefix.",
+      "reason": "Rust build 26270245 moves projectile processing into ProcessCLProject and adds mounted attack admission. Preserve all native checks/accounting and suppress only clientside FX at native275 through native294, plus the actual eight-instruction OnWeaponFired dependency.",
       "set": {
-        "InjectionIndex": 259,
+        "Signature.Name": "ProcessCLProject",
+        "Signature.Parameters": ["BaseEntity/RPCMessage", "System.Boolean", "BaseMountable"],
+        "InjectionIndex": 283,
         "Instructions": [
           {
             "OpCode": "ldloc_0",
@@ -438,7 +470,7 @@
           {
             "OpCode": "brtrue_s",
             "OpType": "Instruction",
-            "Operand": 278
+            "Operand": 302
           }
         ]
       }

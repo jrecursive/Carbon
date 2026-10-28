@@ -1,5 +1,18 @@
 # Staging Hookgen OPJ Overlays
 
+The same build's strict installation review retargets `OnContainerDropItems` to
+`DropItems(ItemContainer, Vector3, bool)` without changing its native-10 admission
+boundary or container-only arguments. Projectile RPC wrappers now delegate to
+`ProcessCLProject(RPCMessage, bool, BaseMountable)`; `OnWeaponFired` retains its
+native count-admitted boundary before the gesture check at 146. Its networking
+FX patch inserts at 283 and resumes at 302 in the body composed with that hook:
+native 275/294 plus the actual eight-instruction notification. The semantic guard
+requires the exact new signature and unchanged native projectile accounting,
+fired-ID validation, mounted admission and loop/disposal behavior. The existing
+six-instruction unvanish routing patch now calls `get_isInvisible`; its branch
+targets, injection/removal indices and the four vanish callback dependencies are
+unchanged. No skip or suppression policy changes.
+
 Build `26270245` (Assembly-CSharp SHA-256
 `52e7d397b8bda67c62d2bebf8571fe9bb1bb7f7d60f672b10338bbb92c308733`)
 renumbers Deep Sea open/close to `d__78` / `d__80`, feedback/player reports to

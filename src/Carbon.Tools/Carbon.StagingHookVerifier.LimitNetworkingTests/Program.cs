@@ -19,7 +19,7 @@ internal static class Test
         MethodInfo[] targets =
         [
             assembly.GetType("Effect+server")!.GetMethod("ImpactEffect")!,
-            assembly.GetType("BaseProjectile")!.GetMethod("CLProject", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance)!,
+            assembly.GetType("BaseProjectile")!.GetMethod("ProcessCLProject", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance)!,
             assembly.GetType("BasePlayer")!.GetMethods(BindingFlags.DeclaredOnly | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance)
                 .Single(method => method.Name == "OnAttacked" && method.GetParameters().Length == 1 && method.GetParameters()[0].ParameterType.Name == "HitInfo")
         ];
