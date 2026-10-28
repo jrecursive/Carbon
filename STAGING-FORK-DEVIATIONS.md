@@ -16,6 +16,21 @@ production or silently assume an official build includes a fork fix.
 
 ## Retained deviations
 
+- Rust build `26270245` replaces the CRC-keyed FileStorage API with native
+  entity/part slots. ImageDatabase uses `StoreByCrc` and the same CRC as part for
+  its shared CommunityEntity images, while reads/removals name that exact slot.
+  Its administrative oversized-file cleanup verifies the stored PNG type before
+  removing a slot, preserving native recordings and sculptures. Admin chart and
+  image sends use the current `CL_ReceiveFile(part, crc, length, bytes)` payload;
+  chart CRCs use the native content-only checksum. These source adaptations do
+  not migrate retained legacy database rows or persisted image identifiers.
+- ImageDatabase startup preserves its recorded CommunityEntity image registry
+  after the upgrade's offline CRC conversion. If that entity ID changes, or its
+  CRC-keyed slots need restoration, a bounded pass reads only the recorded owner
+  and re-stores referenced, CRC-verified PNGs for the current CommunityEntity.
+  Keys, aliases and previous-owner slots remain intact; the identifier advances
+  only after complete recovery. Missing payloads retain the original registry
+  and block image mutations instead of clearing it or replacing it with defaults.
 - Rust build `25999658` adds a second native hacked-state guard and shifts the
   Frankenstein table distance calculation. Exact overlays move `CanHackCrate`
   and `OnFrankensteinPetSleep [FrankensteinTable]` to admitted empty-stack points

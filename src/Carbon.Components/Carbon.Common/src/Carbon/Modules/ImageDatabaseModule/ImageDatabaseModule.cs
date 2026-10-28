@@ -20,6 +20,7 @@ public partial class ImageDatabaseModule : CarbonModule<ImageDatabaseConfig, Emp
 	public override bool ForceEnabled => true;
 
 	internal ImageDatabaseDataProto _protoData { get; set; }
+	private bool _nativeStorageAvailable = true;
 
 	internal Dictionary<string, string> _defaultImages = new()
 	{
@@ -91,22 +92,39 @@ public partial class ImageDatabaseModule : CarbonModule<ImageDatabaseConfig, Emp
 	[AuthLevel(2)]
 	private void ClearInvalid(ConsoleSystem.Arg arg)
 	{
-		var toDelete = Facepunch.Pool.Get<Dictionary<uint, FileStorage.CacheData>>();
+		var toDelete = Facepunch.Pool.Get<List<FileStorage.Slot>>();
 
 		foreach (var file in FileStorage.server._cache)
 		{
 			if (file.Value.data.Length >= MaximumBytes)
 			{
-				toDelete.Add(file.Key, file.Value);
+				toDelete.Add(file.Key);
 			}
 		}
 
-		foreach (var data in toDelete)
+		var removed = 0;
+		foreach (var slot in toDelete)
 		{
-			FileStorage.server.Remove(data.Key, FileStorage.Type.png, data.Value.entityID);
+			// The cache no longer carries file type. Retain this command's PNG-only
+			// deletion scope instead of removing oversized recordings or sculptures.
+			var isPng = false;
+			foreach (var file in FileStorage.server.QueryAllByEntity(slot.EntityId))
+			{
+				try
+				{
+					if (file.part == slot.Part && file.type == (int)FileStorage.Type.png)
+						isPng = true;
+				}
+				finally { file.Dispose(); }
+			}
+			if (isPng)
+			{
+				FileStorage.server.Remove(slot.EntityId, slot.Part);
+				removed++;
+			}
 		}
 
-		arg.ReplyWith($"Removed {toDelete.Count:n0} invalid stored files from FileStorage (above the maximum size of {ByteEx.Format(MaximumBytes, shortName: true).ToUpper()}).");
+		arg.ReplyWith($"Removed {removed:n0} invalid stored files from FileStorage (above the maximum size of {ByteEx.Format(MaximumBytes, shortName: true).ToUpper()}).");
 		Facepunch.Pool.FreeUnmanaged(ref toDelete);
 	}
 
@@ -127,7 +145,7 @@ public partial class ImageDatabaseModule : CarbonModule<ImageDatabaseConfig, Emp
 			Save();
 		}
 
-		if (ConfigInstance.LoadDefaultImagesOnStartup)
+		if (_nativeStorageAvailable && ConfigInstance.LoadDefaultImagesOnStartup)
 		{
 			LoadDefaultImages();
 		}
@@ -209,28 +227,75 @@ public partial class ImageDatabaseModule : CarbonModule<ImageDatabaseConfig, Emp
 
 	public bool Validate()
 	{
-		if (_protoData.Identifier != CommunityEntity.ServerInstance.net.ID.Value)
+		const int maximumImages = 8192;
+		const long maximumBytes = 256L * 1024 * 1024;
+		var current = CommunityEntity.ServerInstance.net.ID;
+		var previous = new NetworkableId(_protoData.Identifier);
+		_nativeStorageAvailable = false;
+		try
 		{
-			PutsWarn($"The server identifier has changed. Wiping old image database. [old {_protoData.Identifier}, new {CommunityEntity.ServerInstance.net.ID.Value}]");
-			_protoData.CustomMap.Clear();
-			_protoData.Map.Clear();
-			_protoData.Identifier = CommunityEntity.ServerInstance.net.ID.Value;
-			return true;
+			if (_protoData.Map.Count > maximumImages)
+				throw new InvalidOperationException("ImageDatabase preservation exceeds the bounded image count.");
+			var wanted = _protoData.Map.Values.Where(crc => crc != 0).ToHashSet();
+			if (previous == current && wanted.All(crc => FileStorage.server.Get(current, crc, crc) != null))
+			{
+				_nativeStorageAvailable = true;
+				return false;
+			}
+			var recovered = new Dictionary<uint, byte[]>();
+			long bytes = 0;
+			if (wanted.Count > 0)
+			{
+				var parts = new Dictionary<ulong, uint>();
+				FileStorage.server.GetCrcs(previous, parts);
+				if (parts.Count > maximumImages)
+					throw new InvalidOperationException("ImageDatabase preservation exceeds the bounded native row count.");
+				foreach (var file in FileStorage.server.QueryAllByEntity(previous))
+				{
+					try
+					{
+						if (file.type != (int)FileStorage.Type.png || file.data == null ||
+							file.data.Length == 0 || file.data.Length >= MaximumBytes) continue;
+						uint crc = FileStorage.ComputeCrc(file.data);
+						if (!wanted.Contains(crc) || recovered.ContainsKey(crc)) continue;
+						bytes += file.data.Length;
+						if (bytes > maximumBytes)
+							throw new InvalidOperationException("ImageDatabase preservation exceeds the bounded byte budget.");
+						recovered.Add(crc, file.data);
+					}
+					finally { file.Dispose(); }
+				}
+				if (recovered.Count != wanted.Count)
+					throw new InvalidOperationException($"ImageDatabase preservation is missing {wanted.Count - recovered.Count} referenced PNG payloads.");
+				foreach (var image in recovered)
+				{
+					if (FileStorage.server.StoreByCrc(current, FileStorage.Type.png, image.Value) != image.Key)
+						throw new InvalidOperationException("ImageDatabase preservation changed a verified content CRC.");
+				}
+			}
+			// The offline upgrade owns legacy CRC conversion. This bounded transfer
+			// retains every known key/alias and leaves the previous owner's slots intact.
+			_protoData.Identifier = current.Value;
+			_nativeStorageAvailable = true;
+			return previous != current;
 		}
-
-		if (!HasImage("checkmark"))
+		catch (Exception error)
 		{
-			_protoData.CustomMap.Clear();
-			_protoData.Map.Clear();
-			return true;
+			PutsError("ImageDatabase native storage is unavailable; retained identifiers and aliases were preserved.", error);
+			return false;
 		}
+	}
 
-		return false;
+	private uint StoreImage(byte[] data, FileStorage.Type type)
+	{
+		return _nativeStorageAvailable
+			? FileStorage.server.StoreByCrc(new NetworkableId(_protoData.Identifier), type, data)
+			: 0u;
 	}
 
 	public void QueueBatch(bool @override, IEnumerable<string> urls)
 	{
-		if (urls == null || !urls.Any())
+		if (!_nativeStorageAvailable || urls == null || !urls.Any())
 		{
 			return;
 		}
@@ -247,7 +312,7 @@ public partial class ImageDatabaseModule : CarbonModule<ImageDatabaseConfig, Emp
 					continue;
 				}
 
-				var id = FileStorage.server.Store(result.Data, FileStorage.Type.png, new NetworkableId(_protoData.Identifier));
+				var id = StoreImage(result.Data, FileStorage.Type.png);
 
 				if (id != 0)
 				{
@@ -258,7 +323,7 @@ public partial class ImageDatabaseModule : CarbonModule<ImageDatabaseConfig, Emp
 	}
 	public void QueueBatch(bool @override, Action<List<ImageQueueResult>> onComplete, IEnumerable<string> urls)
 	{
-		if (urls == null || !urls.Any())
+		if (!_nativeStorageAvailable || urls == null || !urls.Any())
 		{
 			return;
 		}
@@ -320,7 +385,7 @@ public partial class ImageDatabaseModule : CarbonModule<ImageDatabaseConfig, Emp
 							continue;
 						}
 
-						var id = FileStorage.server.Store(result.Data, FileStorage.Type.png, new NetworkableId(_protoData.Identifier));
+						var id = StoreImage(result.Data, FileStorage.Type.png);
 
 						if (id != 0)
 						{
@@ -423,14 +488,17 @@ public partial class ImageDatabaseModule : CarbonModule<ImageDatabaseConfig, Emp
 
 	public void AddImage(string keyOrUrl, byte[] imageData, FileStorage.Type type = FileStorage.Type.png)
 	{
-		_protoData.Map[keyOrUrl] = FileStorage.server.Store(imageData, type, new NetworkableId(_protoData.Identifier));
+		uint crc = StoreImage(imageData, type);
+		if (crc != 0) _protoData.Map[keyOrUrl] = crc;
 	}
 	public void AddMap(string key, string url)
 	{
+		if (!_nativeStorageAvailable) return;
 		_protoData.CustomMap[key] = url;
 	}
 	public void RemoveMap(string key)
 	{
+		if (!_nativeStorageAvailable) return;
 		if (_protoData.CustomMap.ContainsKey(key)) _protoData.CustomMap.Remove(key);
 	}
 
@@ -445,7 +513,7 @@ public partial class ImageDatabaseModule : CarbonModule<ImageDatabaseConfig, Emp
 	}
 	public uint GetImage(string keyOrUrl)
 	{
-		if (string.IsNullOrEmpty(keyOrUrl))
+		if (!_nativeStorageAvailable || string.IsNullOrEmpty(keyOrUrl))
 		{
 			return default;
 		}
@@ -468,19 +536,21 @@ public partial class ImageDatabaseModule : CarbonModule<ImageDatabaseConfig, Emp
 		var image = GetImage(name);
 		if (image == default) return;
 
-		byte[] array = FileStorage.server.Get(image, FileStorage.Type.png, new NetworkableId(_protoData.Identifier));
+		byte[] array = FileStorage.server.Get(new NetworkableId(_protoData.Identifier), image, image);
 
 		if (array == null)
 			return;
 
-		CommunityEntity.ServerInstance.ClientRPC(RpcTarget.Player("CL_ReceiveFilePng", player), image, (uint)array.Length, array, 0u, (byte)FileStorage.Type.png);
+		CommunityEntity.ServerInstance.ClientRPC(RpcTarget.Player("CL_ReceiveFile", player), (ulong)image, image, (uint)array.Length, array);
 	}
 	public bool HasImage(string keyOrUrl)
 	{
-		return FileStorage.server.Get(GetImage(keyOrUrl), FileStorage.Type.png, new NetworkableId(_protoData.Identifier)) != null;
+		uint image = GetImage(keyOrUrl);
+		return FileStorage.server.Get(new NetworkableId(_protoData.Identifier), image, image) != null;
 	}
 	public bool DeleteImage(string url)
 	{
+		if (!_nativeStorageAvailable) return false;
 		var id = GetId(url);
 
 		if (!_protoData.Map.TryGetValue(id, out var uid))
@@ -488,12 +558,13 @@ public partial class ImageDatabaseModule : CarbonModule<ImageDatabaseConfig, Emp
 			return false;
 		}
 
-		FileStorage.server.Remove(uid, FileStorage.Type.png, new NetworkableId(_protoData.Identifier));
+		FileStorage.server.Remove(new NetworkableId(_protoData.Identifier), uid);
 		_protoData.Map.Remove(id);
 		return true;
 	}
 	public void DeleteAllImages(string url)
 	{
+		if (!_nativeStorageAvailable) return;
 		var temp = Pool.Get<Dictionary<string, uint>>();
 
 		foreach (var map in _protoData.Map)
@@ -503,7 +574,7 @@ public partial class ImageDatabaseModule : CarbonModule<ImageDatabaseConfig, Emp
 
 		foreach (var map in temp.Where(x => x.Key.StartsWith(url)))
 		{
-			FileStorage.server.Remove(map.Value, FileStorage.Type.png, new NetworkableId(_protoData.Identifier));
+			FileStorage.server.Remove(new NetworkableId(_protoData.Identifier), map.Value);
 			_protoData.Map.Remove(map.Key);
 		}
 
@@ -512,6 +583,7 @@ public partial class ImageDatabaseModule : CarbonModule<ImageDatabaseConfig, Emp
 
 	public uint GetQRCode(string text, int pixels = 20, bool transparent = false, bool quietZones = true, bool whiteMode = false)
 	{
+		if (!_nativeStorageAvailable) return 0u;
 		if (_protoData.Map.TryGetValue($"qr_{Community.Protect(text)}_{pixels}_0", out uint uid))
 		{
 			return uid;
@@ -534,7 +606,7 @@ public partial class ImageDatabaseModule : CarbonModule<ImageDatabaseConfig, Emp
 			qrCodeImage.Dispose();
 
 			var raw = output.ToArray();
-			uid = FileStorage.server.Store(raw, FileStorage.Type.png, new NetworkableId(_protoData.Identifier));
+			uid = StoreImage(raw, FileStorage.Type.png);
 			_protoData.Map.Add($"qr_{Community.Protect(text)}_{pixels}_0", uid);
 			return uid;
 		}
