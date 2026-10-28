@@ -16,6 +16,14 @@ the expected checksum only together with a reviewed Rust/OPJ update by using
 
 The script applies `staging-hookgen-overlays/staging.json` when the upstream OPJ metadata is stale for the installed staging DLLs. Every overlay patch must match exactly one hook and must actually change its original value. It writes the fetched OPJ, patched OPJ, overlay report, generated C# source, generator summary, and manifest under `release/.tmp`.
 
+For Rust build `26270245`, the overlay retargets the five renamed async/coroutine
+types used by eight Deep Sea, report and Steam inventory hook entries. Deep Sea
+and report bodies are unchanged apart from their type sequence numbers. Steam
+inventory retains its existing successful `SetItems` notification boundary and
+the newly added native default-item skin update after disposal. Hook arguments,
+injection offsets, frozen OPJ bytes and the expected skip set are unchanged; see
+`staging-hookgen-overlays/README.md` for the exact native assembly identity.
+
 The October 1 upstream update adds cutting and livestock hooks and adopts the
 previous report, Deep Sea, RCON, inventory, crafting and conversation retargeting.
 Those redundant overlay fields are removed. The remaining overlay preserves

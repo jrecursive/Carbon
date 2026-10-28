@@ -175,24 +175,49 @@
     },
     {
       "name": "OnFeedbackReported",
-      "reason": "Rust build 25999658 renumbers the feedback-report async state machine to d__795; native IL, locals, branch targets and report notification ordering match build25830079 after normalizing only this type's sequence number.",
+      "reason": "Rust build 26270245 renumbers the feedback-report async state machine to d__800; native IL, locals, indexed branch targets and exception regions match build25999658 after normalizing only this type's sequence number.",
       "set": {
-        "TypeName": "BasePlayer/<OnFeedbackReport>d__795"
+        "TypeName": "BasePlayer/<OnFeedbackReport>d__800"
       }
     },
     {
       "name": "OnFeedbackReported [patch]",
-      "reason": "Rust build 25999658 renumbers the same unchanged feedback-report state machine targeted by its prerequisite report-gate patch to d__795.",
+      "reason": "Rust build 26270245 renumbers the same unchanged feedback-report state machine targeted by its prerequisite report-gate patch to d__800; retain the existing gate removal and base-hook composition.",
       "set": {
-        "TypeName": "BasePlayer/<OnFeedbackReport>d__795"
+        "TypeName": "BasePlayer/<OnFeedbackReport>d__800"
       }
     },
     {
       "name": "OnPlayerReported",
-      "reason": "Rust build 25999658 renumbers the player-report async state machine to d__794; native IL, locals, branch targets and report notification ordering match build25830079 after normalizing only this type's sequence number.",
+      "reason": "Rust build 26270245 renumbers the player-report async state machine to d__799; native IL, locals, indexed branch targets and exception regions match build25999658 after normalizing only this type's sequence number.",
       "set": {
-        "TypeName": "BasePlayer/<OnPlayerReported>d__794"
+        "TypeName": "BasePlayer/<OnPlayerReported>d__799"
       }
+    },
+    {
+      "name": "OnDeepSeaOpened",
+      "reason": "Rust build 26270245 renumbers the unchanged Deep Sea open coroutine from d__76 to d__78. Retain the completed notification at native104 after native open notification and analytics, with the same local1 manager.",
+      "set": { "TypeName": "DeepSeaManager/<OpenDeepSeaAsync>d__78" }
+    },
+    {
+      "name": "OnDeepSeaOpen",
+      "reason": "Rust build 26270245 renumbers the same unchanged Deep Sea open coroutine targeted by the early notification and its completed base hook. Retain existing composition and native ordering.",
+      "set": { "TypeName": "DeepSeaManager/<OpenDeepSeaAsync>d__78" }
+    },
+    {
+      "name": "OnDeepSeaClosed",
+      "reason": "Rust build 26270245 renumbers the unchanged Deep Sea close coroutine from d__78 to d__80. Retain the completed notification at native154 after native cleanup and analytics, with the same local1 manager.",
+      "set": { "TypeName": "DeepSeaManager/<CloseDeepSeaAsync>d__80" }
+    },
+    {
+      "name": "OnDeepSeaClose",
+      "reason": "Rust build 26270245 renumbers the same unchanged Deep Sea close coroutine targeted by the early notification and its completed base hook. Retain existing composition and native ordering.",
+      "set": { "TypeName": "DeepSeaManager/<CloseDeepSeaAsync>d__80" }
+    },
+    {
+      "name": "OnSteamInventoryUpdated",
+      "reason": "Rust build 26270245 renumbers the Steam inventory async body from d__9 to d__11. The successful SetItems/local1 notification boundary remains native95; preserve the following Dispose and newly added native PlayerInventory.OnSteamInventoryUpdated call.",
+      "set": { "TypeName": "SteamInventory/<UpdateSteamInventory>d__11" }
     },
     {
       "name": "OnExplosiveThrown",

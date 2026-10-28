@@ -1,5 +1,18 @@
 # Staging Hookgen OPJ Overlays
 
+Build `26270245` (Assembly-CSharp SHA-256
+`52e7d397b8bda67c62d2bebf8571fe9bb1bb7f7d60f672b10338bbb92c308733`)
+renumbers Deep Sea open/close to `d__78` / `d__80`, feedback/player reports to
+`d__800` / `d__799`, and Steam inventory update to `d__11`. Cecil inspection
+against the captured build `25999658` confirms identical Deep Sea/report native
+instructions, locals, indexed branch targets and exception regions after
+normalizing only each target type's sequence number. The Steam body adds a native
+`PlayerInventory.OnSteamInventoryUpdated` call after temporary inventory disposal;
+the existing notification at instruction 95 still follows successful `SetItems`
+with the same local-1 SteamInventory argument. Type-name-only overlays retain
+that boundary and all native additions. The frozen OPJ checksum and 45 expected
+skips remain unchanged.
+
 The October 24 collectible review found two stale `OnCollectiblePickedup`
 fields against installed build `25999658`: the created `Item` is local 8 while
 local 9 is `ItemModConsume`, and the old composed instruction 146 falls inside
