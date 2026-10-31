@@ -6,6 +6,54 @@ namespace Carbon.StagingHookVerifier;
 
 internal static class LimitNetworkingSemantics
 {
+    // Current Rust owns these guards. Missing generated patches are permitted
+    // only after proving the same effect-only branches in the native method.
+    internal static void VerifyNative(int number, IReadOnlyList<CodeInstruction> il, MethodBase target)
+    {
+        int limit = Enumerable.Range(0, il.Count).Single(i => Call(il[i], "BaseNetworkable", "get_limitNetworking"));
+        if (number == 2)
+        {
+            int start = limit - 1;
+            List<CodeInstruction> withoutGuard = il.Where((_, index) => index < start || index >= start + 3).ToList();
+            Verify(number, withoutGuard, il, target);
+            return;
+        }
+        if (number == 1)
+        {
+            if (target.DeclaringType?.FullName != "Effect+server" || target.Name != "ImpactEffect" ||
+                limit != 6 || il[0].opcode != OpCodes.Ldarg_0 ||
+                !Call(il[1], "HitInfo", "get_InitiatorPlayer"))
+                Fail("Native impact networking guard target or admission changed.");
+            int player = Store(il[2]);
+            if (player < 0 || target.GetMethodBody()!.LocalVariables[player].LocalType.FullName != "BasePlayer" ||
+                Local(il[3]) != player || !IsFalse(il[4]) || Target(il, il[4]) != 9 ||
+                Local(il[5]) != player || !IsFalse(il[7]) || Target(il, il[7]) != 9 ||
+                il[8].opcode != OpCodes.Ret || il[9].opcode != OpCodes.Ldarg_0 ||
+                il[10].opcode != OpCodes.Ldfld || il[10].operand is not FieldInfo field || field.Name != "DoHitEffects")
+                Fail("Native impact guard must return only for a nonnull limited initiator before all FX admission/effects.");
+            return;
+        }
+        if (number != 3) throw new ArgumentOutOfRangeException(nameof(number));
+        int startHeadshot = limit - 5, effectStart = limit + 2;
+        int initiator = startHeadshot >= 0 ? Local(il[startHeadshot]) : -1;
+        if (target.DeclaringType?.FullName != "BasePlayer" || target.Name != "OnAttacked" || initiator < 0 ||
+            target.GetMethodBody()!.LocalVariables[initiator].LocalType.FullName != "BasePlayer" ||
+            il[startHeadshot + 1].opcode != OpCodes.Ldnull ||
+            !Call(il[startHeadshot + 2], "UnityEngine.Object", "op_Equality") ||
+            !IsTrue(il[startHeadshot + 3]) || Target(il, il[startHeadshot + 3]) != effectStart ||
+            Local(il[startHeadshot + 4]) != initiator || !IsTrue(il[limit + 1]) ||
+            il[effectStart].opcode != OpCodes.Ldstr || !Equals(il[effectStart].operand, "assets/bundled/prefabs/fx/headshot.prefab"))
+            Fail("Native headshot guard must retain null/unlimited initiator FX and test the native initiator local.");
+        int definition = Enumerable.Range(0, startHeadshot).Last(i => Store(il[i]) == initiator);
+        int effect = Enumerable.Range(effectStart + 1, il.Count - effectStart - 1).First(i => Call(il[i], "Effect+server", "Run"));
+        if (definition < 1 || !Call(il[definition - 1], "HitInfo", "get_InitiatorPlayer") ||
+            Target(il, il[limit + 1]) != effect + 1 || Local(il[effect + 1]) != initiator ||
+            !Call(il[effect + 2], "UnityEngine.Object", "op_Implicit") ||
+            !Enumerable.Range(0, startHeadshot).Any(i => il[i].opcode.FlowControl == FlowControl.Branch &&
+                il[i].operand is Label && Target(il, il[i]) == startHeadshot))
+            Fail("Native limited headshot initiator must skip exactly FX while retaining statistics, spectators and flinch routing.");
+    }
+
     internal static void Verify(int number, IReadOnlyList<CodeInstruction> before,
         IReadOnlyList<CodeInstruction> after, MethodBase target)
     {

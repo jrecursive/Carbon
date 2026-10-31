@@ -1,5 +1,13 @@
 # Limited-networking FX regression checks
 
+For build `26341433`, Rust owns all three FX guards and upstream removes the
+companion patches. The same wrapper detects that inventory and uses the shared
+native networking test project: 12 focused checks per assembly validate the
+actual native guard and reject reversed polarity, wrong initiator and return
+shortcuts. The authoritative verifier uses these same native semantic checks.
+Historical generated-patch inputs continue through the existing composition
+checks below. No missing patch silently passes.
+
 Rust build `26270245` routes projectile RPCs through
 `ProcessCLProject(RPCMessage, bool, BaseMountable)`. The generated notification,
 FX guard and verifier fixture target that exact shared processing method; native

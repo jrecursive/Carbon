@@ -14,8 +14,13 @@ internal static class Tests
             string path = Path.Combine(managed, name.Name + ".dll");
             return File.Exists(path) ? context.LoadFromAssemblyPath(path) : null;
         };
+        return Run(managed);
+    }
+    [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
+    private static int Run(string managed)
+    {
         Assembly game = Assembly.LoadFrom(Path.Combine(managed, "Assembly-CSharp.dll"));
-        MethodInfo target = game.GetType("NPCTalking")!.GetMethod("Server_HandleResponse")!;
+        MethodInfo target = game.GetType("NPCTalking")!.GetMethod("HandleResponse")!;
         List<CodeInstruction> Build(bool completed = true)
         {
             List<CodeInstruction> original = PatchProcessor.GetOriginalInstructions(target, out ILGenerator generator);
@@ -24,53 +29,74 @@ internal static class Tests
         }
         ConversationResponseSemantics.Verify(Build(), target);
         int passed = 1;
-        Console.WriteLine("PASS actual generated response composition: owner/native admission, veto and completed/ended ordering");
+        Console.WriteLine("PASS actual generated composition: native owner/admission/result IL retained, veto and completed/ended ordering");
         var harmony = new Harmony("conversation.semantic.install");
         harmony.Patch(target, transpiler: new HarmonyMethod(typeof(GeneratedVeto).GetMethod("Transpiler")));
         harmony.Patch(target, transpiler: new HarmonyMethod(typeof(GeneratedCompleted).GetMethod("Transpiler")));
-        harmony.UnpatchAll("conversation.semantic.install");
-        passed++;
-        Console.WriteLine("PASS both actual generated transpilers install without invalid IL");
-        int Hook(List<CodeInstruction> il, int id) => Enumerable.Range(5, il.Count - 5).Single(i =>
-            il[i].operand is MethodInfo m && m.Name == "CallStaticHook" &&
-            il[i - 5].opcode == OpCodes.Ldc_I4 && Equals(il[i - 5].operand, id));
+        harmony.UnpatchAll("conversation.semantic.install"); passed++;
+        Console.WriteLine("PASS both actual generated transpilers install and detach with veto removed first");
+        harmony.Patch(target, transpiler: new HarmonyMethod(typeof(GeneratedVeto).GetMethod("Transpiler")));
+        harmony.Patch(target, transpiler: new HarmonyMethod(typeof(GeneratedCompleted).GetMethod("Transpiler")));
+        harmony.Unpatch(target, typeof(GeneratedCompleted).GetMethod("Transpiler")!);
+        harmony.Unpatch(target, typeof(GeneratedVeto).GetMethod("Transpiler")!); passed++;
+        Console.WriteLine("PASS completion-first detach preserves the prerequisite and native method");
         int Call(List<CodeInstruction> il, string name) => il.FindIndex(i => i.operand is MethodInfo m && m.Name == name);
         void Reject(string name, Action<List<CodeInstruction>> mutate, bool completed = true)
         {
             List<CodeInstruction> il = Build(completed); mutate(il);
             try { ConversationResponseSemantics.Verify(il, target); }
             catch (InvalidOperationException error)
-            {
-                Console.WriteLine("PASS reject " + name + ": " + error.Message);
-                passed++; return;
-            }
+            { Console.WriteLine("PASS reject " + name + ": " + error.Message); passed++; return; }
             throw new Exception("Unsafe conversation hook mapping accepted: " + name);
         }
         Reject("missing completion dependency", _ => { }, completed: false);
-        Reject("wrong owning player argument", il => il[Hook(il, ConversationResponseSemantics.RespondId) - 3].opcode = OpCodes.Ldarg_0);
-        Reject("wrong conversation local", il => il[Hook(il, ConversationResponseSemantics.RespondId) - 2].opcode = OpCodes.Ldloc_1);
-        Reject("null response enters veto", il => il[Hook(il, ConversationResponseSemantics.RespondId) - 6].opcode = OpCodes.Brtrue_S);
-        Reject("reversed null/veto behavior", il => il[Hook(il, ConversationResponseSemantics.RespondId) + 2].opcode = OpCodes.Bne_Un_S);
-        Reject("nonnull veto continues native actions", il => il[Hook(il, ConversationResponseSemantics.RespondId) + 3].opcode = OpCodes.Nop);
+        Reject("wrong owning player argument", il => il[Call(il, "BeforeResponse") - 5].opcode = OpCodes.Ldarg_0);
+        Reject("wrong conversation local", il => il[Call(il, "BeforeResponse") - 4].opcode = OpCodes.Ldloc_1);
+        Reject("reversed null/veto behavior", il => il[Call(il, "BeforeResponse") + 1].opcode = OpCodes.Brfalse);
+        Reject("nonnull veto continues native actions", il => il[Call(il, "BeforeResponse") + 2].opcode = OpCodes.Nop);
         Reject("hidden responses admitted", il => il[Call(il, "CanSeeConversationResponse") + 1].opcode = OpCodes.Brfalse_S);
-        Reject("stale speech nodes admitted", il => il[Call(il, "get_ConversationSpeechNodeIndex") + 1].opcode = OpCodes.Bne_Un_S);
-        Reject("out-of-range response admitted", il => il[Hook(il, ConversationResponseSemantics.RespondId) - 14].opcode = OpCodes.Bge_S);
-        Reject("native conversation admission removed", il => { var i = il[Call(il, "CanDriveConversation")]; i.opcode = OpCodes.Nop; i.operand = null; });
-        Reject("ended conversation reaches completion", il => il[Call(il, "ForceEndConversation") + 1].opcode = OpCodes.Nop);
-        Reject("completion precedes native speech transition", il =>
+        Reject("native speech admission removed", il => il[Call(il, "TryGetShownSpeechNode")].opcode = OpCodes.Nop);
+        Reject("completion loses selected response", il => il[Call(il, "CompleteResponse") - 1].opcode = OpCodes.Ldnull);
+        void RejectHelper(string name, string helperName, Action<List<CodeInstruction>> mutate)
         {
-            int start = Hook(il, ConversationResponseSemantics.RespondedId) - 5;
-            List<CodeInstruction> callback = il.GetRange(start, 7);
-            il.RemoveRange(start, 7);
-            il.InsertRange(Call(il, "OnConversationAction"), callback);
-        });
+            var il = Build(); MethodInfo helper = (MethodInfo)il[Call(il, helperName)].operand;
+            List<CodeInstruction> altered = PatchProcessor.GetOriginalInstructions(helper, out _); mutate(altered);
+            try { ConversationResponseSemantics.Verify(il, target, method => method == helper ? altered : PatchProcessor.GetOriginalInstructions(method, out _)); }
+            catch (InvalidOperationException error)
+            { Console.WriteLine("PASS reject " + name + ": " + error.Message); passed++; return; }
+            throw new Exception("Unsafe conversation helper accepted: " + name);
+        }
+        RejectHelper("ended conversation reaches completion", "CompleteResponse", il => il[Call(il, "OnConversationEnded") + 1].opcode = OpCodes.Nop);
+        RejectHelper("completion wrong player", "CompleteResponse", il => il[Call(il, "CallStaticHook") - 3].opcode = OpCodes.Ldarg_0);
+        RejectHelper("veto callback wrong conversation", "BeforeResponse", il => il[Call(il, "CallStaticHook") - 2].opcode = OpCodes.Ldarg_1);
+        RejectHelper("veto changes null continuation", "BeforeResponse", il => il[Call(il, "CallStaticHook") + 2].opcode = OpCodes.Cgt_Un);
+        // Plain authoring node data and the stub dispatcher only; never run a native entity.
+        var response = new ConversationData.ResponseNode();
+        var speech = new ConversationData.SpeechNodeData { responses = new[] { response } };
+        foreach (object? veto in new object?[] { null, false, true, "blocked" })
+        {
+            HookCaller.Veto = veto; HookCaller.Calls = 0;
+            bool result = GeneratedVeto.BeforeResponse(null!, null!, null!, speech, 0, out var selected);
+            if (result != (veto == null) || !ReferenceEquals(selected, response) || HookCaller.Calls != 1)
+                throw new Exception("Conversation callback null/non-null contract changed.");
+            passed++;
+        }
+        HookCaller.Calls = 0;
+        foreach (int index in new[] { -1, 1 })
+            if (!GeneratedVeto.BeforeResponse(null!, null!, null!, speech, index, out _) || HookCaller.Calls != 0)
+                throw new Exception("Out-of-range response reached callback.");
+        speech.responses[0] = null!;
+        if (!GeneratedVeto.BeforeResponse(null!, null!, null!, speech, 0, out _) || HookCaller.Calls != 0)
+            throw new Exception("Null response reached callback.");
+        passed++;
         Console.WriteLine("Conversation semantic tests passed=" + passed);
         return 0;
     }
 }
-
-// Bind only the actual generated dispatch signature; no native entity is executed.
 public static class HookCaller
 {
-    public static object? CallStaticHook(uint id, object npc, object player, object conversation, object response) => null;
+    public static object? Veto;
+    public static int Calls;
+    public static object? CallStaticHook(uint id, object npc, object player, object conversation, object response)
+    { Calls++; return Veto; }
 }

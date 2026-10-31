@@ -14,7 +14,7 @@ while (($#)); do
   esac
 done
 for tool in dotnet python3; do command -v "$tool" >/dev/null || { echo "Missing tool: $tool" >&2; exit 1; }; done
-for file in "$generated/NPC.cs" "$managed/Assembly-CSharp.dll" "$raw_managed/Assembly-CSharp.dll"; do
+for file in "$generated/NPC.cs" "$managed/Assembly-CSharp.dll" "$raw_managed/Assembly-CSharp.dll" "$raw_managed/Rust.Data.dll" "$raw_managed/Rust.Global.dll" "$raw_managed/Facepunch.UnityEngine.dll" "$raw_managed/Facepunch.Network.dll" "$raw_managed/UnityEngine.CoreModule.dll"; do
   [[ -f "$file" ]] || { echo "Missing required input: $file" >&2; exit 1; }
 done
 scratch="$(mktemp -d /tmp/carbon-conversation-semantics.XXXXXX)"
@@ -26,16 +26,18 @@ source,output=map(Path,sys.argv[1:])
 text=(source/'NPC.cs').read_text()
 for hook,kind in [('OnNpcConversationRespond','GeneratedVeto'),('OnNpcConversationResponded','GeneratedCompleted')]:
  marker=text.index('"'+hook+'"')
- start=text.index('public static IEnumerable<CodeInstruction> Transpiler(',marker)
+ start=text.index('public class ',marker)
  brace=text.index('{',start);depth=1;end=brace+1
  while depth:
   if text[end]=='{':depth+=1
   elif text[end]=='}':depth-=1
   end+=1
- (output/(kind+'.cs')).write_text('using System.Reflection;using System.Reflection.Emit;using HarmonyLib;\ninternal static class '+kind+' {\n'+text[start:end]+'\n}\n')
+ original=text[start+len('public class '):text.index(' : API.Hooks.Patch',start)]
+ methods=text[brace+1:end-1].replace(original,kind)
+ (output/(kind+'.cs')).write_text('using System;using System.Linq;using System.Collections.Generic;using System.Reflection;using System.Reflection.Emit;using HarmonyLib;\ninternal static class '+kind+' {\n'+methods+'\n}\n')
 PY
 project="$root/src/Carbon.Tools/Carbon.StagingHookVerifier.ConversationSemanticTests/ConversationSemanticTests.csproj"
 NUGET_HTTP_CACHE_PATH="$scratch/nuget-cache" dotnet run --project "$project" -c Release \
-  -p:GeneratedHookSources="$scratch" -p:TreatWarningsAsErrors=true -- "$managed"
+  -p:GeneratedHookSources="$scratch" -p:ConversationManaged="$raw_managed" -p:TreatWarningsAsErrors=true -- "$managed"
 dotnet run --no-build --project "$project" -c Release \
   -p:GeneratedHookSources="$scratch" -- "$raw_managed"

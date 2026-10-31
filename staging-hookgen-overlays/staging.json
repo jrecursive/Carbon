@@ -1,109 +1,6 @@
 {
   "patches": [
     {
-      "name": "OnContainerDropItems",
-      "reason": "Rust build 26270245 adds native DropUtil.DropItems scatter admission. Bind the available three-argument signature, retaining the existing container-only veto at native10 after null/drop-policy admission and before item mutation.",
-      "set": {
-        "Signature.Parameters": ["ItemContainer", "UnityEngine.Vector3", "System.Boolean"]
-      }
-    },
-    {
-      "name": "OnWeaponFired",
-      "reason": "Rust build 26270245 moves projectile processing from CLProject into ProcessCLProject(RPCMessage,bool,BaseMountable). Preserve the existing weapon/player/projectile-component/projectile-shoot callback immediately after native count admission and before the gesture check, now native146; the wrappers retain attack validation.",
-      "set": {
-        "Signature.Name": "ProcessCLProject",
-        "Signature.Parameters": ["BaseEntity/RPCMessage", "System.Boolean", "BaseMountable"],
-        "InjectionIndex": 146
-      }
-    },
-    {
-      "name": "OnPlayerUnvanished [Patch]",
-      "reason": "Rust build 26270245 exposes isInvisible as a property. Preserve the composed vanish/unvanish branch routing and its six-instruction guard, calling the native getter instead of resolving the removed field.",
-      "set": {
-        "Instructions": [
-          { "OpCode": "br", "OpType": "Instruction", "Operand": 148 },
-          { "OpCode": "ldloc_1", "OpType": "None" },
-          { "OpCode": "brtrue", "OpType": "Instruction", "Operand": 148 },
-          { "OpCode": "ldloc_0", "OpType": "None" },
-          { "OpCode": "callvirt", "OpType": "Method", "Operand": "Assembly-CSharp|BasePlayer|get_isInvisible" },
-          { "OpCode": "brfalse", "OpType": "Instruction", "Operand": 148 }
-        ]
-      }
-    },
-    {
-      "name": "OnCollectiblePickedup",
-      "reason": "Installed staging CollectibleEntity.DoPickup creates Item in local8; local9 is ItemModConsume. Notify after successful receiver analytics and before GiveItem at native119, plus the nine-instruction OnCollectiblePickup dependency, instead of native137 in the receiver-null drop branch.",
-      "set": {
-        "ArgumentString": "this, a0, l8",
-        "InjectionIndex": 128
-      }
-    },
-    {
-      "name": "CanHackCrate",
-      "reason": "Rust build 25999658 adds native IsFullyHacked admission. Veto only the empty-stack admitted branch after both hack-state gates and before analytics, hacker ownership, achievement or StartHacking side effects.",
-      "set": { "InjectionIndex": 7 }
-    },
-    {
-      "name": "OnFrankensteinPetSleep [FrankensteinTable]",
-      "reason": "Rust build 25999658 shifts the completed owner/inventory/privilege/pet/distance admission branch. Keep the existing non-null cancellation contract on its empty-stack instruction before returning items, removals, networking and pet destruction.",
-      "set": { "InjectionIndex": 41 }
-    },
-    {
-      "name": "LimitNetworkingAcquaintances [patch]",
-      "reason": "Rust build 25999658 removes the occlusion block and contracts UpdateAcquaintancesFor. A limited-networking peer must skip acquaintance/lastSeen effects to the existing enumerator MoveNext at native96, retaining finally and pooled-list cleanup.",
-      "set": {
-        "Instructions": [
-          { "OpCode": "ldloc_3", "OpType": "None" },
-          { "OpCode": "callvirt", "OpType": "Method", "Operand": "Assembly-CSharp|BaseNetworkable|get_limitNetworking" },
-          { "OpCode": "brtrue", "OpType": "Instruction", "Operand": 96 }
-        ]
-      }
-    },
-    {
-      "name": "OnLivestockAnimalFamiliarityAdd",
-      "reason": "Rust build 25999658 removes FamiliarityReason and inlines the credit body into AddFamiliarity(ulong,float). The scoped generator policy preserves entry veto with the available animal/userId/seconds arguments.",
-      "set": { "Signature.Parameters": ["System.UInt64", "System.Single"] }
-    },
-    {
-      "name": "OnLivestockAnimalFamiliarityAdded",
-      "reason": "Rust build 25999658 replaces the wrapper with a six-return native credit body and removes FamiliarityReason. The scoped generator policy emits a completion postfix guarded by __runOriginal instead of using the obsolete single IL index.",
-      "set": { "Signature.Parameters": ["System.UInt64", "System.Single"] }
-    },
-    {
-      "name": "OnNpcConversationRespond",
-      "reason": "Rust build 25999658 routes owner-only player response RPCs into the typed Server_HandleResponse method. Keep the selected regular-response veto after native conversation/visibility/bounds/null admission and before native conditions or actions.",
-      "set": {
-        "Signature.Name": "Server_HandleResponse",
-        "Signature.Parameters": [
-          "BasePlayer",
-          "System.Int32",
-          "System.Int32",
-          "System.UInt32",
-          "System.UInt32",
-          "NetworkableId"
-        ],
-        "ArgumentString": "this, a0, l0, l14",
-        "InjectionIndex": 189
-      }
-    },
-    {
-      "name": "OnNpcConversationResponded",
-      "reason": "Retain the completed-response notification immediately after native ForceSpeechNode in Server_HandleResponse, with the same NPC/player/conversation/response arguments. Index248 includes the actual nine-instruction response-veto dependency; native ForceEndConversation still returns before this notification.",
-      "set": {
-        "Signature.Name": "Server_HandleResponse",
-        "Signature.Parameters": [
-          "BasePlayer",
-          "System.Int32",
-          "System.Int32",
-          "System.UInt32",
-          "System.UInt32",
-          "NetworkableId"
-        ],
-        "ArgumentString": "this, a0, l0, l14",
-        "InjectionIndex": 248
-      }
-    },
-    {
       "name": "OnInterferenceUpdate",
       "reason": "Installed staging AutoTurret.RecalculateInterference returns bool.",
       "set": {
@@ -142,8 +39,7 @@
       "name": "OnEntityBuilt",
       "reason": "Rust build 25830079 adds failed-placement diagnostics; notify at the first instruction of the non-null completed-placement branch, preserving Planner/GameObject arguments and the native BaseEntity return.",
       "set": {
-        "Signature.ReturnType": "BaseEntity",
-        "InjectionIndex": 199
+        "Signature.ReturnType": "BaseEntity"
       }
     },
     {
@@ -151,13 +47,6 @@
       "reason": "Installed staging server initialize target returns bool.",
       "set": {
         "Signature.ReturnType": "System.Boolean"
-      }
-    },
-    {
-      "name": "OnBallistaGunReload",
-      "reason": "Installed staging ballista reload target returns void.",
-      "set": {
-        "Signature.ReturnType": "System.Void"
       }
     },
     {
@@ -192,62 +81,9 @@
       "name": "OnBuildingPrivilege",
       "reason": "Rust build 25830079 adds ignorePosition to the native privilege lookup; bind the new signature while preserving the existing entity/bounds/cache/duration/exclusion hook arguments.",
       "set": {
-        "Signature.Parameters": [
-          "OBB",
-          "System.Boolean",
-          "System.Single",
-          "BuildingPrivlidge",
-          "System.Boolean"
-        ],
         "ArgumentBehavior": 4,
         "ArgumentString": "this, a0, a1, a2, a3"
       }
-    },
-    {
-      "name": "OnFeedbackReported",
-      "reason": "Rust build 26270245 renumbers the feedback-report async state machine to d__800; native IL, locals, indexed branch targets and exception regions match build25999658 after normalizing only this type's sequence number.",
-      "set": {
-        "TypeName": "BasePlayer/<OnFeedbackReport>d__800"
-      }
-    },
-    {
-      "name": "OnFeedbackReported [patch]",
-      "reason": "Rust build 26270245 renumbers the same unchanged feedback-report state machine targeted by its prerequisite report-gate patch to d__800; retain the existing gate removal and base-hook composition.",
-      "set": {
-        "TypeName": "BasePlayer/<OnFeedbackReport>d__800"
-      }
-    },
-    {
-      "name": "OnPlayerReported",
-      "reason": "Rust build 26270245 renumbers the player-report async state machine to d__799; native IL, locals, indexed branch targets and exception regions match build25999658 after normalizing only this type's sequence number.",
-      "set": {
-        "TypeName": "BasePlayer/<OnPlayerReported>d__799"
-      }
-    },
-    {
-      "name": "OnDeepSeaOpened",
-      "reason": "Rust build 26270245 renumbers the unchanged Deep Sea open coroutine from d__76 to d__78. Retain the completed notification at native104 after native open notification and analytics, with the same local1 manager.",
-      "set": { "TypeName": "DeepSeaManager/<OpenDeepSeaAsync>d__78" }
-    },
-    {
-      "name": "OnDeepSeaOpen",
-      "reason": "Rust build 26270245 renumbers the same unchanged Deep Sea open coroutine targeted by the early notification and its completed base hook. Retain existing composition and native ordering.",
-      "set": { "TypeName": "DeepSeaManager/<OpenDeepSeaAsync>d__78" }
-    },
-    {
-      "name": "OnDeepSeaClosed",
-      "reason": "Rust build 26270245 renumbers the unchanged Deep Sea close coroutine from d__78 to d__80. Retain the completed notification at native154 after native cleanup and analytics, with the same local1 manager.",
-      "set": { "TypeName": "DeepSeaManager/<CloseDeepSeaAsync>d__80" }
-    },
-    {
-      "name": "OnDeepSeaClose",
-      "reason": "Rust build 26270245 renumbers the same unchanged Deep Sea close coroutine targeted by the early notification and its completed base hook. Retain existing composition and native ordering.",
-      "set": { "TypeName": "DeepSeaManager/<CloseDeepSeaAsync>d__80" }
-    },
-    {
-      "name": "OnSteamInventoryUpdated",
-      "reason": "Rust build 26270245 renumbers the Steam inventory async body from d__9 to d__11. The successful SetItems/local1 notification boundary remains native95; preserve the following Dispose and newly added native PlayerInventory.OnSteamInventoryUpdated call.",
-      "set": { "TypeName": "SteamInventory/<UpdateSteamInventory>d__11" }
     },
     {
       "name": "OnExplosiveThrown",
@@ -393,123 +229,6 @@
           {
             "OpCode": "ret",
             "OpType": "None"
-          }
-        ]
-      }
-    },
-    {
-      "name": "OnQuarryGather",
-      "reason": "Rust build 25830079 changes quarry gathering IL; notify after native item creation/analytics and before MoveToContainer arguments, removing a vetoed item and continuing the native resource loop without switching off the quarry.",
-      "set": {
-        "InjectionIndex": 107,
-        "Instructions": [
-          {
-            "OpCode": "ldstr",
-            "OpType": "String",
-            "Operand": "OnQuarryGather"
-          },
-          {
-            "OpCode": "ldarg_0",
-            "OpType": "None"
-          },
-          {
-            "OpCode": "ldloc",
-            "OpType": "Variable",
-            "Operand": 7
-          },
-          {
-            "OpCode": "call",
-            "OpType": "Method",
-            "Operand": "Oxide.Core|Oxide.Core.Interface|CallHook(System.String,System.Object,System.Object)"
-          },
-          {
-            "OpCode": "brfalse_s",
-            "OpType": "Instruction",
-            "Operand": 107
-          },
-          {
-            "OpCode": "ldloc",
-            "OpType": "Variable",
-            "Operand": 7
-          },
-          {
-            "OpCode": "ldc_r4",
-            "OpType": "Single",
-            "Operand": "0.0"
-          },
-          {
-            "OpCode": "callvirt",
-            "OpType": "Method",
-            "Operand": "Assembly-CSharp|Item|Remove(System.Single)"
-          },
-          {
-            "OpCode": "br_s",
-            "OpType": "Instruction",
-            "Operand": 126
-          }
-        ]
-      }
-    },
-    {
-      "name": "LimitNetworkingNoEffect [patch 2]",
-      "reason": "Rust build 26270245 moves projectile processing into ProcessCLProject and adds mounted attack admission. Preserve all native checks/accounting and suppress only clientside FX at native275 through native294, plus the actual eight-instruction OnWeaponFired dependency.",
-      "set": {
-        "Signature.Name": "ProcessCLProject",
-        "Signature.Parameters": ["BaseEntity/RPCMessage", "System.Boolean", "BaseMountable"],
-        "InjectionIndex": 283,
-        "Instructions": [
-          {
-            "OpCode": "ldloc_0",
-            "OpType": "None"
-          },
-          {
-            "OpCode": "callvirt",
-            "OpType": "Method",
-            "Operand": "Assembly-CSharp|BaseNetworkable|get_limitNetworking"
-          },
-          {
-            "OpCode": "brtrue_s",
-            "OpType": "Instruction",
-            "Operand": 302
-          }
-        ]
-      }
-    },
-    {
-      "name": "LimitNetworkingNoEffect [patch 3]",
-      "reason": "Anchor limited-initiator headshot FX suppression at the native effect argument block after safe-zone additions and the actual six-instruction Carbon base hook; preserve stats and all other damage behavior.",
-      "set": {
-        "InjectionIndex": 247,
-        "Instructions": [
-          {
-            "OpCode": "ldloc_s",
-            "OpType": "Variable",
-            "Operand": 8
-          },
-          {
-            "OpCode": "call",
-            "OpType": "Method",
-            "Operand": "UnityEngine.CoreModule|UnityEngine.Object|op_Implicit"
-          },
-          {
-            "OpCode": "brfalse_s",
-            "OpType": "Instruction",
-            "Operand": 247
-          },
-          {
-            "OpCode": "ldloc_s",
-            "OpType": "Variable",
-            "Operand": 8
-          },
-          {
-            "OpCode": "callvirt",
-            "OpType": "Method",
-            "Operand": "Assembly-CSharp|BaseNetworkable|get_limitNetworking"
-          },
-          {
-            "OpCode": "brtrue_s",
-            "OpType": "Instruction",
-            "Operand": 269
           }
         ]
       }

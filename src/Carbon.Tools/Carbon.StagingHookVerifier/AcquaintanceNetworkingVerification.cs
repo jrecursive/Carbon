@@ -12,7 +12,18 @@ internal static partial class Program
         const string name = "LimitNetworkingAcquaintances [patch]";
         try
         {
-            HookMetadata patch = hooks.Single(hook => hook.HookFullName == name);
+            HookMetadata[] matches = hooks.Where(hook => hook.HookFullName == name).ToArray();
+            if (matches.Length == 0)
+            {
+                Type nativeType = FindType("RelationshipManager") ?? throw new InvalidOperationException("Native acquaintance target type is missing.");
+                Type playerType = FindType("BasePlayer") ?? throw new InvalidOperationException("Native acquaintance player type is missing.");
+                MethodInfo nativeTarget = AccessTools.Method(nativeType, "UpdateAcquaintancesFor", new[] { playerType, typeof(float) })
+                    ?? throw new InvalidOperationException("Native acquaintance target is missing.");
+                AcquaintanceNetworkingSemantics.VerifyNative(PatchProcessor.GetOriginalInstructions(nativeTarget, out _), nativeTarget);
+                stats.SemanticChecks++;
+                return;
+            }
+            HookMetadata patch = matches.Single();
             if (patch.Dependencies.Length != 0)
                 throw new InvalidOperationException("Acquaintance guard acquired an unreviewed base dependency.");
             Type type = FindType(patch.Target) ?? throw new InvalidOperationException("Acquaintance target type is missing.");

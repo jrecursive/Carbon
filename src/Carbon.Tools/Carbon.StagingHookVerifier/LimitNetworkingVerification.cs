@@ -16,7 +16,16 @@ internal static partial class Program
             try
             {
                 HookMetadata basic = hooks.Single(h => h.HookFullName == bases[number - 1]);
-                HookMetadata patch = hooks.Single(h => h.HookFullName == name);
+                HookMetadata[] matches = hooks.Where(h => h.HookFullName == name).ToArray();
+                if (matches.Length == 0)
+                {
+                    Type nativeType = FindType(basic.Target) ?? throw new InvalidOperationException("Native networking FX target type is missing.");
+                    MethodBase nativeTarget = ResolveTargetMethod(nativeType, basic) ?? throw new InvalidOperationException("Native networking FX target is missing.");
+                    LimitNetworkingSemantics.VerifyNative(number, PatchProcessor.GetOriginalInstructions(nativeTarget, out _), nativeTarget);
+                    stats.SemanticChecks++;
+                    continue;
+                }
+                HookMetadata patch = matches.Single();
                 if (!patch.Dependencies.Contains(basic.HookFullName))
                     throw new InvalidOperationException("Networking FX patch lost its declared base hook dependency.");
                 Type type = FindType(patch.Target) ?? throw new InvalidOperationException("Networking FX target type is missing.");

@@ -5,7 +5,7 @@ using static Carbon.Projects.Oxide.Oxide;
 
 namespace Carbon.Generation;
 
-internal static class HookPolicies
+internal static partial class HookPolicies
 {
 	private const string OnClanCreatedKnownMsilHash = "2fryvtABc9jbiXMuMDwBwrurrCfPQRd0jcmtbyO8x/I=";
 	private const string OnClanLogoChangedPatchKnownMsilHash = "KuTX1u22EO8+4GjS+SACsxt4g298bNL2E6omZgUevf8=";
@@ -85,7 +85,8 @@ internal static class HookPolicies
 
 	public static bool TryGeneratePolicyBody(StringBuilder body, HookDef.Data hook)
 	{
-		return TryGenerateLivestockFamiliarityPolicy(body, hook)
+		return TryGenerateConversationResponsePolicy(body, hook)
+		       || TryGenerateLivestockFamiliarityPolicy(body, hook)
 		       || TryGenerateOnClanCreatedAsyncSuccessRetargetPolicy(body, hook)
 		       || TryGenerateFlameTurretCanBeTargetedPolicy(body, hook)
 		       || TryGenerateFlameTurretTargetCleanupPolicy(body, hook);
@@ -93,6 +94,21 @@ internal static class HookPolicies
 
 	private static bool TryGenerateLivestockFamiliarityPolicy(StringBuilder body, HookDef.Data hook)
 	{
+		if (hook.TypeName == "Rust.Ai.Gen2.LivestockAnimal" && hook.Signature.Name == "AddFamiliarity" &&
+		    hook.Signature.Parameters.SequenceEqual(new[] { "System.UInt64", "System.Single" }) &&
+		    hook.HookName == "OnLivestockAnimalFamiliarityAdded" &&
+		    hook.Name is "OnLivestockAnimalFamiliarityAdded [new]" or "OnLivestockAnimalFamiliarityAdded [probation]")
+		{
+			// The maintained completion postfix already covers every normal
+			// native return. Retain these upstream aliases and dependencies
+			// without dispatching duplicate completion callbacks.
+			body.AppendLine("public static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions) {");
+			body.AppendLine("return instructions;");
+			body.AppendLine("}");
+			CloseGeneratedHookBody(body);
+			return true;
+		}
+
 		if (hook.TypeName != "Rust.Ai.Gen2.LivestockAnimal" || hook.Signature.Name != "AddFamiliarity" ||
 		    !hook.Signature.Parameters.SequenceEqual(new[] { "System.UInt64", "System.Single" }) ||
 		    hook.Name != hook.HookName || hook.Name is not ("OnLivestockAnimalFamiliarityAdd" or "OnLivestockAnimalFamiliarityAdded"))

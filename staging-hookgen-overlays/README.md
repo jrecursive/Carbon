@@ -1,5 +1,31 @@
 # Staging Hookgen OPJ Overlays
 
+Build `26341433` uses the newly reviewed upstream OPJ (SHA-256
+`bf8c05960db603e34575b3b84a88c9a259f020e26a3e6a9ce4f4b77231432ace`).
+It has 870 definitions: one initialization entry, 45 unchanged reviewed skips,
+and 824 generated entries. Upstream now carries the corrected collectible,
+container, projectile, unvanish, crate, Frankenstein, quarry and coroutine
+targets; remove their obsolete overlays instead of applying old values again.
+The old ballista-specific reload entry is replaced upstream by
+`OnMountedWeaponReload`.
+
+Rust itself now rejects limited-networking peers from acquaintances and gates
+impact, projectile and headshot FX. The four former Carbon networking patches
+are absent upstream. Qualification checks the native guards' peer/initiator
+identity, branch polarity, effect-only skip scope and retained cleanup/statistics;
+absence of a generated patch alone does not pass these checks.
+
+The maintained familiarity policy retains entry veto and exactly one
+native-execution-gated completion across all six native returns. Two new
+upstream completion aliases (`[new]` and `[probation]`) keep their metadata and
+dependency chain but emit identity transpilers. This explicitly consolidates
+callbacks into the existing completion postfix; it does not skip failed hooks.
+The required verifier proves both alias bodies preserve their exact IL input
+and contain no hook dispatch, alongside the existing postfix semantic proof.
+Resource finish-bonus native output moves from Item local 4 to 5; the maintained
+WashedPlatform bridge discovers the actual Item creation result and analytics
+anchors, and its focused resource checks bind those exact native instructions.
+
 The same build's strict installation review retargets `OnContainerDropItems` to
 `DropItems(ItemContainer, Vector3, bool)` without changing its native-10 admission
 boundary or container-only arguments. Projectile RPC wrappers now delegate to
@@ -65,6 +91,15 @@ dependency. Native `ForceEndConversation` still returns before that notification
 The authoritative verifier and `test-staging-conversation-hooks.sh` compose both
 generated transpilers and guard these contracts; the 45 expected skips stay
 unchanged.
+
+Build `26341433` carries the `HandleResponse` rename upstream, so both obsolete
+conversation overlays are removed. The generator's scoped
+`ConversationHookPolicy` bridges the new `ConversationHost` split while retaining
+NPC/player/conversation/selected-response callbacks. Exact native method pins
+fail closed before installation. The veto captures the admitted response before
+native result effects; the transition wrapper preserves the native ended versus
+`ForceSpeechNode` split and notifies only after the latter. The focused test and
+normal verifier retain the same checks on raw and publicized native assemblies.
 
 `build-staging-hooks.sh` fetches `Rust.opj` from the Oxide.Rust staging branch and applies the overlay in this directory before running `Carbon.Hooks.Generator`.
 

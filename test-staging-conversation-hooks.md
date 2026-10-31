@@ -15,6 +15,13 @@ bounds/null checks, NPC/player/conversation/response argument bindings, non-null
 cancellation before native conditions/actions, and completion after native
 `ForceSpeechNode` without running native entities. It installs both transpilers
 in the CLR and rejects unsafe mutations of the arguments, gates, cancellation
-and completed/ended ordering. It runs against publicized and raw assemblies.
+and completed/ended ordering. Build `26341433` uses the scoped response policy:
+all native `HandleResponse` instructions survive except its final transition
+call, which uses the exact reviewed native ended/successful split. A local keeps
+the original selected response across effects, including null for mission paths.
+The handler and four host helpers are bound by exact module and resolved-body
+pins at runtime installation. The focused checks exercise null, false, true and
+other non-null veto returns using plain authoring-node data and a stub dispatcher;
+no entity, conversation condition, reward, mission or network method executes. It runs against publicized and raw assemblies.
 Generated source and build work stay disposable; no runtime or installed
 reference is modified. The same semantic check runs in `verify-staging-hooks.sh`.

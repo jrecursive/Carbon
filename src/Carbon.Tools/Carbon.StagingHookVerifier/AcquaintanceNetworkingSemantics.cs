@@ -6,6 +6,40 @@ namespace Carbon.StagingHookVerifier;
 
 internal static class AcquaintanceNetworkingSemantics
 {
+    internal static void VerifyNative(IReadOnlyList<CodeInstruction> il, MethodBase target)
+    {
+        if (target.DeclaringType?.FullName != "RelationshipManager" || target.Name != "UpdateAcquaintancesFor" ||
+            target is not MethodInfo method || method.ReturnType != typeof(void) ||
+            !target.GetParameters().Select(parameter => parameter.ParameterType.FullName)
+                .SequenceEqual(new[] { "BasePlayer", "System.Single" }))
+            Fail("Native acquaintance networking target changed.");
+        int limit = Unique(il, instruction => Call(instruction, "BaseNetworkable", "get_limitNetworking"));
+        int start = limit - 1, peer = start >= 0 ? Local(il[start], false) : -1;
+        int relations = Unique(il, instruction => Call(instruction, "RelationshipManager+PlayerRelationships", "GetRelations"));
+        int nextCall = Unique(il, instruction => Call(instruction, null, "MoveNext"));
+        int next = nextCall - 1;
+        if (peer < 0 || target.GetMethodBody()!.LocalVariables[peer].LocalType.FullName != "BasePlayer" ||
+            il[limit].opcode != OpCodes.Callvirt ||
+            (il[limit + 1].opcode != OpCodes.Brtrue && il[limit + 1].opcode != OpCodes.Brtrue_S) ||
+            Target(il, il[limit + 1]) != next || relations != limit + 6 ||
+            Local(il[limit + 3], false) != peer || il[limit + 4].opcode != OpCodes.Ldfld ||
+            il[limit + 4].operand is not FieldInfo user || user.Name != "userID" ||
+            !Call(il[limit + 5], null, "op_Implicit"))
+            Fail("Native limited peer must skip relations and mutations directly to the existing enumerator continuation.");
+        int definition = Enumerable.Range(0, start).LastOrDefault(index => Local(il[index], true) == peer, -1);
+        int seen = Unique(il, instruction => instruction.opcode == OpCodes.Stfld && instruction.operand is FieldInfo field && field.Name == "lastSeenTime");
+        if (definition < 2 || !Call(il[definition - 1], null, "get_Current") ||
+            il[definition - 1].operand is not MethodInfo current || current.ReturnType.FullName != "BasePlayer" ||
+            !IsAddress(il[definition - 2]) || !IsAddress(il[next]) ||
+            Local(il[next], false) != Local(il[definition - 2], false) ||
+            (il[nextCall + 1].opcode != OpCodes.Brtrue && il[nextCall + 1].opcode != OpCodes.Brtrue_S) ||
+            Target(il, il[nextCall + 1]) != definition - 2 || seen <= relations || seen >= next ||
+            !il.Skip(nextCall + 1).Any(instruction => instruction.opcode == OpCodes.Endfinally) ||
+            !il.Skip(nextCall + 1).Any(instruction => Call(instruction, "System.IDisposable", "Dispose")) ||
+            !il.Skip(nextCall + 1).Any(instruction => Call(instruction, "Facepunch.Pool", "FreeUnmanaged")))
+            Fail("Native acquaintance skip must retain foreach peer identity, loop continuation and all cleanup.");
+    }
+
     internal static void Verify(IReadOnlyList<CodeInstruction> before,
         IReadOnlyList<CodeInstruction> after, MethodBase target)
     {

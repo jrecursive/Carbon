@@ -1,5 +1,11 @@
 # Livestock familiarity hook checks
 
+The build `26341433` OPJ adds two completion aliases for new/probation credit
+branches. Their generated identity transpilers preserve metadata/dependencies
+while the maintained postfix remains the sole completion dispatch. Required
+qualification verifies the alias target/chain, exact input-list identity and
+absence of hook calls, preventing duplicated completion notifications.
+
 Run after generating hooks for the selected installed Rust assemblies:
 
 ```sh

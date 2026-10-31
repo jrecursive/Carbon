@@ -17,6 +17,20 @@ for tool in dotnet python3; do command -v "$tool" >/dev/null || { echo "Missing 
 for file in "$GENERATED/Player.cs" "$GENERATED/Weapon.cs" "$GENERATED/_Patches.cs" "$GENERATED/__GeneratorRuntime.cs" "$MANAGED/Assembly-CSharp.dll" "$RAW_MANAGED/Assembly-CSharp.dll"; do
   [[ -f "$file" ]] || { echo "Missing required input: $file" >&2; exit 1; }
 done
+if ! python3 - "$GENERATED/_Patches.cs" <<'PY'
+from pathlib import Path
+import sys
+text = Path(sys.argv[1]).read_text()
+sys.exit(0 if '"LimitNetworkingNoEffect [patch 1]"' in text else 1)
+PY
+then
+  PROJECT="$ROOT/src/Carbon.Tools/Carbon.StagingHookVerifier.NativeNetworkingTests/NativeNetworkingTests.csproj"
+  NATIVE_CACHE="$(mktemp -d /tmp/carbon-native-networking.XXXXXX)"
+  trap 'rm -rf -- "$NATIVE_CACHE"' EXIT
+  NUGET_HTTP_CACHE_PATH="$NATIVE_CACHE" dotnet run --project "$PROJECT" -c Release -- "$MANAGED" effects
+  dotnet run --no-build --project "$PROJECT" -c Release -- "$RAW_MANAGED" effects
+  exit 0
+fi
 WORK="$(mktemp -d /tmp/carbon-limit-networking.XXXXXX)"
 trap 'rm -rf -- "$WORK"' EXIT
 python3 - "$GENERATED" "$WORK" <<'PY'

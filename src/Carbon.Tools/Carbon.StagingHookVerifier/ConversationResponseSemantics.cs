@@ -1,5 +1,7 @@
 using System.Reflection;
 using System.Reflection.Emit;
+using System.Security.Cryptography;
+using System.Text;
 using HarmonyLib;
 
 namespace Carbon.StagingHookVerifier;
@@ -8,128 +10,109 @@ internal static class ConversationResponseSemantics
 {
     internal const int RespondId = 1580074841;
     internal const int RespondedId = unchecked((int)2723808568u);
-
     private static void Require(bool value, string message)
-    {
-        if (!value) throw new InvalidOperationException(message);
-    }
-
+    { if (!value) throw new InvalidOperationException(message); }
     private static bool Calls(CodeInstruction instruction, string owner, string name) =>
-        (instruction.opcode == OpCodes.Call || instruction.opcode == OpCodes.Callvirt) &&
         instruction.operand is MethodBase method && method.DeclaringType?.FullName == owner && method.Name == name;
-
-    private static int One(IReadOnlyList<CodeInstruction> il, string owner, string name)
-    {
-        int[] found = Enumerable.Range(0, il.Count).Where(i => Calls(il[i], owner, name)).ToArray();
-        Require(found.Length == 1, $"Expected exactly one {owner}.{name} call.");
-        return found[0];
-    }
-
+    private static int One(IReadOnlyList<CodeInstruction> il, string name) =>
+        Enumerable.Range(0, il.Count).Single(i => il[i].operand is MethodInfo method && method.Name == name);
     private static int Target(IReadOnlyList<CodeInstruction> il, object operand)
     {
         Require(operand is Label, "Conversation branch label is unresolved.");
-        Label label = (Label)operand;
-        int[] found = Enumerable.Range(0, il.Count).Where(i => il[i].labels.Contains(label)).ToArray();
-        Require(found.Length == 1, "Conversation branch must have one target.");
-        return found[0];
+        return Enumerable.Range(0, il.Count).Single(i => il[i].labels.Contains((Label)operand));
     }
-
-    private static int Local(CodeInstruction instruction, bool store = false)
+    private static string Shape(MethodBase method)
     {
-        OpCode code = instruction.opcode;
-        if (code == (store ? OpCodes.Stloc_0 : OpCodes.Ldloc_0)) return 0;
-        if (code == (store ? OpCodes.Stloc_1 : OpCodes.Ldloc_1)) return 1;
-        if (code == (store ? OpCodes.Stloc_2 : OpCodes.Ldloc_2)) return 2;
-        if (code == (store ? OpCodes.Stloc_3 : OpCodes.Ldloc_3)) return 3;
-        if (code != (store ? OpCodes.Stloc : OpCodes.Ldloc) && code != (store ? OpCodes.Stloc_S : OpCodes.Ldloc_S)) return -1;
-        return instruction.operand switch
+        List<CodeInstruction> il = PatchProcessor.GetOriginalInstructions(method, out _);
+        string Operand(object? value) => value switch
         {
-            LocalBuilder variable => variable.LocalIndex,
-            LocalVariableInfo variable => variable.LocalIndex,
-            int value => value,
-            byte value => value,
-            _ => -1
+            MethodBase call => call.DeclaringType!.FullName + ":" + call.Name,
+            FieldInfo field => field.DeclaringType!.FullName + ":" + field.Name,
+            Label label => "@" + il.FindIndex(i => i.labels.Contains(label)),
+            LocalBuilder local => "V" + local.LocalIndex,
+            Type type => type.FullName!, null => "", _ => value.ToString()!
         };
+        MethodBody body = method.GetMethodBody()!;
+        string value = body.MaxStackSize + "/" + body.InitLocals + "/" +
+            string.Join(",", body.LocalVariables.Select(local => local.LocalType.FullName)) + "/" +
+            body.ExceptionHandlingClauses.Count + "\n" + string.Join("\n", il.Select(i => i.opcode.Name + "|" + Operand(i.operand)));
+        return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(value))).ToLowerInvariant();
     }
-
     private static int Dispatch(IReadOnlyList<CodeInstruction> il, int id)
     {
-        int[] found = Enumerable.Range(5, il.Count - 5).Where(i =>
-            il[i].operand is MethodInfo method && method.Name == "CallStaticHook" &&
-            il[i - 5].opcode == OpCodes.Ldc_I4 && Equals(il[i - 5].operand, id)).ToArray();
-        Require(found.Length == 1, $"Expected exactly one conversation dispatch for {unchecked((uint)id)}.");
-        int call = found[0];
-        Require(il[call - 4].opcode == OpCodes.Ldarg_0 && il[call - 3].opcode == OpCodes.Ldarg_1 &&
-                Local(il[call - 2]) == 0 && Local(il[call - 1]) == 14,
-                "Conversation callback arguments must remain NPC, owning player, active conversation and selected response.");
-        MethodInfo dispatch = (MethodInfo)il[call].operand;
+        int index = One(il, "CallStaticHook");
+        Require(il[index - 5].opcode == OpCodes.Ldc_I4 && Equals(il[index - 5].operand, id), "Conversation callback identity changed.");
+        MethodInfo dispatch = (MethodInfo)il[index].operand;
         Require(dispatch.ReturnType == typeof(object) && dispatch.GetParameters().Select(p => p.ParameterType).SequenceEqual(
-                new[] { typeof(uint), typeof(object), typeof(object), typeof(object), typeof(object) }),
-                "Conversation callback must retain its object-valued four-argument contract.");
-        return call;
+            new[] { typeof(uint), typeof(object), typeof(object), typeof(object), typeof(object) }), "Conversation callback ABI changed.");
+        return index;
     }
-
-    internal static void Verify(IReadOnlyList<CodeInstruction> il, MethodBase method)
+    internal static void Verify(IReadOnlyList<CodeInstruction> il, MethodBase method,
+        Func<MethodBase, List<CodeInstruction>>? read = null)
     {
-        Require(method.DeclaringType?.FullName == "NPCTalking" && method.Name == "Server_HandleResponse" &&
-                method.GetParameters().Select(p => p.ParameterType.FullName).SequenceEqual(new[] {
-                    "BasePlayer", "System.Int32", "System.Int32", "System.UInt32", "System.UInt32", "NetworkableId" }),
-                "Conversation hooks must use the native typed Server_HandleResponse entrypoint.");
-        var locals = method.GetMethodBody()!.LocalVariables;
-        Require(locals.Count > 14 && locals[0].LocalType.FullName == "ConversationData" &&
-                locals[14].LocalType.FullName == "ConversationData+ResponseNode",
-                "Conversation and response local bindings changed.");
-        MethodInfo? rpc = method.GetParameters()[0].ParameterType.GetMethod("Server_ConversationResponse",
-            BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
-        Require(rpc != null && rpc.GetCustomAttributesData().Any(attribute =>
-                attribute.AttributeType.FullName == "BaseEntity+RPC_Server+FromOwner"),
-                "Conversation response RPC must retain native owner admission.");
-        List<CodeInstruction> rpcIl = PatchProcessor.GetOriginalInstructions(rpc!, out _);
-        Require(One(rpcIl, "NPCTalking", "Server_HandleResponse") > 0,
-                "Owning player RPC must route through the native typed conversation handler.");
-        int respond = Dispatch(il, RespondId), responded = Dispatch(il, RespondedId);
-        int start = respond - 5;
-        int drive = One(il, "NPCTalking", "CanDriveConversation");
-        Require(drive == 2 && il[0].opcode == OpCodes.Ldarg_0 && il[1].opcode == OpCodes.Ldarg_1 &&
-                (il[drive + 1].opcode == OpCodes.Brtrue || il[drive + 1].opcode == OpCodes.Brtrue_S) &&
-                Target(il, il[drive + 1].operand) == drive + 3 && il[drive + 2].opcode == OpCodes.Ret,
-                "Native distance/phone conversation admission must precede every response hook.");
-        int speech = One(il, "BasePlayer", "get_ConversationSpeechNodeIndex");
-        Require(speech < start && il[speech - 2].opcode == OpCodes.Ldarg_2 && il[speech - 1].opcode == OpCodes.Ldarg_1 &&
-                (il[speech + 1].opcode == OpCodes.Beq || il[speech + 1].opcode == OpCodes.Beq_S) &&
-                Target(il, il[speech + 1].operand) == speech + 3 && il[speech + 2].opcode == OpCodes.Ret,
-                "Stale speech-node requests must return before the response hooks.");
-        int conversation = One(il, "NPCTalking", "GetActiveConversationFor");
-        Require(conversation < start && Local(il[conversation + 1], true) == 0 && Local(il[conversation + 2]) == 0 &&
-                il[conversation + 3].opcode == OpCodes.Ldnull && Calls(il[conversation + 4], "UnityEngine.Object", "op_Equality") &&
-                (il[conversation + 5].opcode == OpCodes.Brfalse || il[conversation + 5].opcode == OpCodes.Brfalse_S) &&
-                Target(il, il[conversation + 5].operand) == conversation + 7 && il[conversation + 6].opcode == OpCodes.Ret,
-                "Only a valid native active conversation may reach response hooks.");
-        int visible = One(il, "BasePlayer", "CanSeeConversationResponse");
-        Require(visible < start && il[visible - 2].opcode == OpCodes.Ldarg_1 && il[visible - 1].opcode == OpCodes.Ldarg_3 &&
-                (il[visible + 1].opcode == OpCodes.Brtrue || il[visible + 1].opcode == OpCodes.Brtrue_S) &&
-                Target(il, il[visible + 1].operand) == visible + 3 && il[visible + 2].opcode == OpCodes.Ret,
-                "Hidden or invalid response choices must return before the response hook.");
-        Require(start >= 14 && Local(il[start - 3], true) == 14 && Local(il[start - 2]) == 14 &&
-                (il[start - 1].opcode == OpCodes.Brfalse || il[start - 1].opcode == OpCodes.Brfalse_S) &&
-                Target(il, il[start - 1].operand) > respond && il[start - 14].opcode == OpCodes.Ldarg_3 &&
-                il[start - 11].opcode == OpCodes.Ldlen && il[start - 10].opcode == OpCodes.Conv_I4 &&
-                (il[start - 9].opcode == OpCodes.Blt || il[start - 9].opcode == OpCodes.Blt_S) &&
-                Target(il, il[start - 9].operand) == start - 7 && il[start - 8].opcode == OpCodes.Ret,
-                "Response callback must follow native response bounds and non-null checks.");
-        Require(il[respond + 1].opcode == OpCodes.Ldnull &&
-                (il[respond + 2].opcode == OpCodes.Beq || il[respond + 2].opcode == OpCodes.Beq_S) &&
-                Target(il, il[respond + 2].operand) == respond + 4 && il[respond + 3].opcode == OpCodes.Ret &&
-                Local(il[respond + 4]) == 14 && il[respond + 5].operand is FieldInfo conditions && conditions.Name == "conditions",
-                "Every non-null response veto must return; null alone continues native condition evaluation.");
-        int pass = One(il, "ConversationData+ResponseNode", "PassesConditions");
-        int action = One(il, "NPCTalking", "OnConversationAction");
-        Require(respond < pass && pass < action && action < responded,
-                "Response veto must precede native conditions and action effects.");
-        int end = One(il, "NPCTalking", "ForceEndConversation");
-        int next = One(il, "NPCTalking", "ForceSpeechNode");
-        Require(end < next && il[end + 1].opcode == OpCodes.Ret && next == responded - 6 &&
-                il[responded + 1].opcode == OpCodes.Pop && il[responded + 2].opcode == OpCodes.Ret,
-                "Response completion notification must follow ForceSpeechNode; ended conversations must return without it.");
+        read ??= method => PatchProcessor.GetOriginalInstructions(method, out _);
+        Require(method.DeclaringType?.FullName == "NPCTalking" && method.Name == "HandleResponse" &&
+            method.Module.ModuleVersionId.ToString() == "a5e8e418-dabf-43a5-8e0d-9fd08f1715b1" &&
+            method.GetParameters().Select(p => p.ParameterType.FullName).SequenceEqual(new[] {
+                "BasePlayer", "System.Int32", "System.Int32", "System.UInt32", "System.UInt32", "NetworkableId" }),
+            "Conversation hooks must retain the reviewed NPC typed response entrypoint.");
+        Assembly game = method.DeclaringType!.Assembly;
+        Type host = game.GetType("ConversationHost")!;
+        // Resolved IL includes branch targets, local layout, operands, stack and EH;
+        // both raw and Carbon-publicized references must prove the same contract.
+        var pins = new Dictionary<MethodBase, string> {
+            [method] = "06a3acc04d8d6a2e788dcf26ade05f2e487338ab60e3a05517cd44f9fd31a856",
+            [host.GetMethod("CanDriveConversation")!] = "fff862ae7526c9197fd3f03ab99c6bdd1f6fb4874194391551357cdbd593d428",
+            [host.GetMethod("TryGetShownSpeechNode")!] = "6d529f8694c2a82fac3b6fc119826c667b045ec6b97f9ab0486df8aec69c1ce4",
+            [host.GetMethod("TryGetResponseResult")!] = "cf29e13702fabdfdd834bd676b2a755ef14a63ef421eb082fe0e09d52e25d533",
+            [host.GetMethod("ShowNextSpeechNode")!] = "2285cbffa388dd8d4c6db615cd7d3e00497d409d9f0aa502c61e4f0db6db3307"
+        };
+        foreach (var pin in pins) Require(Shape(pin.Key) == pin.Value, "Reviewed native conversation contract changed: " + pin.Key.Name);
+        MethodInfo rpc = game.GetType("BasePlayer")!.GetMethod("Server_ConversationResponse", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)!;
+        Require(rpc.GetCustomAttributesData().Any(a => a.AttributeType.FullName == "BaseEntity+RPC_Server+FromOwner") &&
+            read(rpc).Any(i => Calls(i, "IConversationProvider", "HandleResponse")), "Owning player RPC admission/routing changed.");
+        List<CodeInstruction> original = PatchProcessor.GetOriginalInstructions(method, out _);
+        Require(original.Count == 166 && il.Count == 177, "Conversation policy must insert only the reviewed veto and transition wrapper.");
+        int before = One(il, "BeforeResponse"), completed = One(il, "CompleteResponse");
+        Require(before == 156 && completed == 175 && il[before - 6].opcode == OpCodes.Ldarg_0 &&
+            il[before - 5].opcode == OpCodes.Ldarg_1 && il[before - 4].opcode == OpCodes.Ldloc_0 &&
+            il[before - 3].opcode == OpCodes.Ldloc_1 && il[before - 2].opcode == OpCodes.Ldarg_3 &&
+            il[before - 1].opcode == OpCodes.Ldloca && il[before - 1].operand is LocalBuilder selected &&
+            selected.LocalType.FullName == "ConversationData+ResponseNode" && il[before + 1].opcode == OpCodes.Brtrue &&
+            Target(il, il[before + 1].operand) == before + 3 && il[before + 2].opcode == OpCodes.Ret,
+            "Response veto must retain admitted NPC/player/conversation/response selection and return on cancellation.");
+        Require(il[completed - 2].opcode == OpCodes.Ldarg_0 && il[completed - 1].opcode == OpCodes.Ldloc &&
+            Equals(il[completed - 1].operand, il[before - 1].operand), "Completion must retain the original selected response local.");
+        // All existing admission, mission, visibility, native helper and return IL
+        // remains byte-for-byte in meaning; only the final transition call changes.
+        int Position(int old) => old < 150 ? old : old < 164 ? old + 9 : old + 11;
+        for (int n = 0; n < original.Count; n++)
+        {
+            if (n == 164) continue;
+            CodeInstruction prior = original[n], current = il[Position(n)];
+            Require(prior.opcode == current.opcode, "Conversation policy changed a native opcode at " + n);
+            if (prior.operand is Label)
+                Require(Target(il, current.operand) == (Target(original, prior.operand) == 150 ? 150 : Position(Target(original, prior.operand))),
+                    "Conversation policy changed native admission/control flow at " + n);
+            else if (prior.operand is LocalBuilder local)
+                Require(current.operand is LocalBuilder other && other.LocalIndex == local.LocalIndex && other.LocalType == local.LocalType,
+                    "Conversation policy changed a native local at " + n);
+            else Require(Equals(prior.operand, current.operand), "Conversation policy changed a native operand at " + n);
+        }
+        MethodInfo beforeMethod = (MethodInfo)il[before].operand, completeMethod = (MethodInfo)il[completed].operand;
+        List<CodeInstruction> veto = read(beforeMethod), completion = read(completeMethod);
+        int vetoDispatch = Dispatch(veto, RespondId), completeDispatch = Dispatch(completion, RespondedId);
+        Require(veto.Count(i => i.opcode == OpCodes.Ldelem_Ref) == 1 && veto.FindIndex(i => i.opcode == OpCodes.Ldelem_Ref) < vetoDispatch &&
+            veto[vetoDispatch + 1].opcode == OpCodes.Ldnull && veto[vetoDispatch + 2].opcode == OpCodes.Ceq &&
+            veto[vetoDispatch + 3].opcode == OpCodes.Ret && veto[vetoDispatch - 4].opcode == OpCodes.Ldarg_0 &&
+            veto[vetoDispatch - 3].opcode == OpCodes.Ldarg_1 && veto[vetoDispatch - 2].opcode == OpCodes.Ldarg_2,
+            "Selected non-null response hook must preserve arguments and null-only continuation before native effects.");
+        int find = One(completion, "GetFirstSpeechNodeFrom"), end = One(completion, "OnConversationEnded"), next = One(completion, "ForceSpeechNode");
+        Require(find < end && end < next && next < completeDispatch && completion[end + 1].opcode == OpCodes.Ret &&
+            completion[completeDispatch + 1].opcode == OpCodes.Pop && completion[completeDispatch + 2].opcode == OpCodes.Ret &&
+            completion[completeDispatch - 4].opcode == OpCodes.Ldarg_S && Convert.ToInt32(completion[completeDispatch - 4].operand) == 4 &&
+            completion[completeDispatch - 3].opcode == OpCodes.Ldarg_1 && completion[completeDispatch - 2].opcode == OpCodes.Ldarg_2 &&
+            completion[completeDispatch - 1].opcode == OpCodes.Ldarg_S && Convert.ToInt32(completion[completeDispatch - 1].operand) == 5,
+            "Completion must follow native ForceSpeechNode with original arguments; ended conversations must return without notification.");
     }
 }

@@ -1,5 +1,13 @@
 # Acquaintance limited-networking guard
 
+For build `26341433`, Rust includes the peer limit check itself and upstream
+removes the generated patch. The wrapper detects that inventory and runs the
+shared native networking test project against raw and publicized assemblies.
+Four checks per assembly validate the native peer identity, limit branch,
+relation/timestamp bypass and loop/disposal/pool cleanup, and reject reversed
+polarity, wrong peer and return shortcuts. The authoritative verifier uses the
+same guard. Historical generated-patch inputs retain the checks below.
+
 Run `./test-staging-acquaintance-networking.sh --generated-dir PATH` against the
 candidate generator output. `--managed` and `--raw-managed` select the publicized
 and original Rust managed trees; defaults match the other focused hook wrappers.
