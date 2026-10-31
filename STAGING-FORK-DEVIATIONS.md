@@ -68,6 +68,21 @@ production or silently assume an official build includes a fork fix.
   callback arguments, veto continuation and completed/ended ordering. Keep the
   existing 45 generator skips unchanged. Remove the overlays when reviewed
   upstream metadata carries these exact contracts and the same checks pass.
+- Rust build `26341433` renames that handler to `HandleResponse` and moves
+  selection/results into `ConversationHost`. The obsolete conversation overlays
+  are removed. A scoped generator policy retains the exact native handler IL,
+  inserts the veto immediately before the native result helper, and captures the
+  selected response once in a new local. Completion replaces only the final
+  `ShowNextSpeechNode` call with its reviewed two-branch behavior: native
+  `GetFirstSpeechNodeFrom`, native ended callback or native `ForceSpeechNode`,
+  then the completion notification. Mission/list paths retain a null selected
+  response. Both patches require the same exact module and resolved body hashes
+  for the handler and its four admission/result/transition helpers at install.
+  The normal verifier and focused wrapper check raw/publicized composition,
+  native IL/control-flow preservation, argument identity, cancellation and the
+  ended/successful split. No native entity runs during these checks. Remove this
+  policy only when canonical generation preserves these contracts and the same
+  focused checks pass.
 - `HookCallerInternal` owns reflected-overload argument buffers through the
   dispatch lifetime and returns them to the pool after the call. This generic
   ownership fix requires explicit review in each public port, independently of
