@@ -1,4 +1,4 @@
-var target = GetArg(1, "Debug");
+﻿var target = GetArg(1, "Debug");
 var defines = GetArg(2);
 var tag = GetArg(3, Git.RunOutput("describe", "--tags"));
 var version = GetVariable("VERSION");
@@ -30,7 +30,7 @@ var tos = isUnix ? "Linux" : "Windows";
 
 if(isUnix)
 {
-	Files.Copy(Path(Home, "src", "Carbon.Native", "target", "x86_64-unknown-linux-gnu", cargoTarget, "libCarbonNative.so"), Path(Home, "release", ".tmp", target, "profiler", "native"));
+	Files.Copy(Path(Home, "src", "Carbon.Native", "target", "x86_64-unknown-linux-gnu", cargoTarget, "libcarbon_native.so"), Path(Home, "release", ".tmp", target, "profiler", "native", "libCarbonNative.so"));
 
 	if(!noArchive)
 	{
@@ -39,7 +39,7 @@ if(isUnix)
 }
 else
 {
-	Files.Copy(Path(Home, "src", "Carbon.Native", "target", "x86_64-pc-windows-gnu", cargoTarget, "CarbonNative.dll"), Path(Home, "release", ".tmp", target, "profiler", "native"));
+	Files.Copy(Path(Home, "src", "Carbon.Native", "target", "x86_64-pc-windows-gnu", cargoTarget, "carbon_native.dll"), Path(Home, "release", ".tmp", target, "profiler", "native", "CarbonNative.dll"));
 
 	if(!noArchive)
 	{

@@ -46,7 +46,7 @@ internal static class Program
 		var generator = new Generator(new GeneratorOptions(Arguments.Jobs, validationMode, Arguments.Deterministic));
 		var report = timings.Measure("generate hooks", () => generator.Generate(project));
 
-		Console.WriteLine($">> types done:{report.SuccessfulHooks.Count} failed:{report.FailedHooks.Count} types");
+		Console.WriteLine($">> types done:{report.SuccessfulHooks.Count} failed:{report.FailedHooks.Count} skipped:{report.SkippedHooks.Count} types");
 
 		timings.Measure("write output", () => writer.Write(report, gameProtocol));
 		if (!string.IsNullOrWhiteSpace(Arguments.SummaryOutput))

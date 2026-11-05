@@ -1,0 +1,92 @@
+# verify-staging-hooks
+
+`verify-staging-hooks.sh` checks Carbon's generated hook DLLs against the installed staging Rust managed DLLs without booting the server.
+
+By default this is a strict release gate. It verifies every generated hook in the hook DLLs, install-tests the watched staging compatibility hook surface in isolated child processes, and does not allow generated hook suppression.
+
+This catches the failure classes that otherwise appear during startup:
+
+- generated hook metadata whose target type, method, or signature no longer exists
+- generated Harmony patches/transpilers that produce invalid IL
+- generated dynamic hooks that only fail when a plugin subscribes to them
+- accidental reliance on generated hook suppression
+- `OnPlayerDisconnected` moving outside Rust's native non-null `BasePlayer` branch
+- `OnMarketplaceTerminalPurchase` dispatching with wrong locals or after purchase side effects
+- `OnLoseCondition` failing to copy a plugin-mutated by-ref amount back before subtraction
+- explosive notifications passing a prediction ID or an uninitialized entity, or running before spawn/after item consumption
+- `OnEntityBuilt` escaping its successful placement branch or passing the wrong GameObject
+- `OnConstructionPlace` losing the pre-spawn veto, exact callback arguments or native cleanup paths
+- `OnCollectiblePickedup` passing the consume component instead of the created Item, or firing only in the receiver-null drop branch
+
+Required semantic checks run in every normal parent verification, including
+`--requested-only`. They execute transpilers over the installed Rust IL and
+require the disconnect hook to stay in the non-null player branch, the
+marketplace hook to cancel before eligibility/power/transaction work, and the
+durability gateway to apply the value copied back from hook argument two.
+Explosive checks also trace the native throw/spawn helpers and verify the exact
+RPC player/entity locals, successful creation guard, setup/cooldown ordering and
+pre-consumption notification boundary. Construction checks preserve the existing
+Planner/GameObject event after native spawn and before deployment/payment work.
+Run `./test-staging-spawn-hooks.sh` for installed-IL positive and negative
+regressions of these semantic checks; see `test-staging-spawn-hooks.md`.
+Construction veto checks preserve null-versus-nonnull callback semantics and prove
+cleanup/null-return before native helper execution. Run
+`./test-staging-construction-hooks.sh` against freshly generated source for CLR
+installation, mutation tests and executed veto-path cases. Its sibling document
+records the current refactor's earlier placement relative to skin/health setup.
+
+Collectible checks compose the entry veto with the completed-pickup notification.
+They require the exact created Item after receiver analytics and before native
+delivery, preserve null-item/null-receiver/consumed-food exclusions and the
+multi-output loop, and compare every original opcode, operand and branch. Run
+`./test-staging-collectible-hooks.sh --hooks-dir PATH` against a candidate's exact
+Oxide hook DLL; its sibling document covers compatible Carbon/Rust paths and
+the focused stale-offset/local/control-flow rejection cases.
+
+The legacy focused compatibility mode is still available with `--focused-compat`, but strict staging upgrades should not use it.
+
+## Usage
+
+```bash
+./verify-staging-hooks.sh
+./verify-staging-hooks.sh --carbon-managed release/.tmp/ReleaseUnix/carbon/managed
+./verify-staging-hooks.sh --hooks-dir release/.tmp/ReleaseUnix/carbon/managed/hooks
+./verify-staging-hooks.sh --requested-only --install-hooks-from-log /home/johnm/git/rust-platform/current_errors.log
+./verify-staging-hooks.sh --install-hook 'CanCatchFish[5fbe61]'
+./verify-staging-hooks.sh --dump-hook OnItemCraft --carbon-managed release/.tmp/ReleaseUnix/carbon/managed
+./verify-staging-hooks.sh --all-generated --strict-no-suppression --install-all-dynamic
+./verify-staging-hooks.sh --allow-suppression-file explicit-suppressions.json
+```
+
+`--dump-hook` is read-only inspection: it prints the selected target's local
+slots and indexed native IL, then exits without installing patches. Use it when
+reviewing changed signatures, injection points and hook argument locals.
+
+Defaults:
+
+- server root: `/home/johnm/rust-staging-autoupdate/server`
+- Carbon managed: `<server-root>/carbon/managed`
+- hooks dir: `<carbon-managed>/hooks`
+
+`upgrade-staging.sh` runs this verifier against the freshly built managed output before copying Carbon into the staging server.
+
+Use `--requested-only --install-hooks-from-log` when `current_errors.log` contains hook request or patch failures and you want the fastest repair loop. The verifier parses log tokens such as `CanCatchFish[5fbe61]`, resolves them back to generated hook types, and Harmony install-tests each one in a child process. If the local generator emits a different deterministic identifier than the log's installed build, the verifier falls back to testing generated hooks with the same hook name. Child install tests run with `--max-parallel-install-checks 8` by default when called through the shell wrapper; a child crash or timeout is reported as a verifier failure instead of requiring another full server boot.
+
+`--allow-suppression-file` is the only supported bypass for generated hook suppression. The file may be either an array of hook full names or an object with a `hooks` array. Object entries may use `hookFullName` or `hook`.
+
+Use `--install-all-dynamic` for the full pre-install qualification gate. It is
+more expensive than the watched compatibility set because each generated
+dynamic hook is installed in an isolated child process, but it proves that no
+fork-only `HookPolicies` or `PatchManager` exception is still required. The
+verifier's compatibility expectation types are tool-local; it does not require
+or compile staging shims into `Carbon.dll`. The parent performs the complete
+structural pass once; each child indexes only its requested hook before install,
+so isolation does not repeat all signature resolution hundreds of times. Child
+processes use a bounded `Parallel.For`, avoiding thread-pool starvation from
+queuing one blocking task per generated hook.
+
+The required semantic pass also composes all three `LimitNetworkingNoEffect`
+patches with their declared base hooks. It preserves null/unlimited initiator FX,
+skips only the intended visual effect for limited initiators, and compares every
+native/base-hook opcode and operand outside the inserted guard. Focused mutation
+and CLR-install regressions: `./test-staging-limit-networking.sh --generated-dir PATH`.

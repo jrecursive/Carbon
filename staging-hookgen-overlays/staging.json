@@ -1,0 +1,253 @@
+{
+  "patches": [
+    {
+      "name": "OnInterferenceUpdate",
+      "reason": "Installed staging AutoTurret.RecalculateInterference returns bool.",
+      "set": {
+        "Signature.ReturnType": "System.Boolean"
+      }
+    },
+    {
+      "name": "CanUseFuel",
+      "reason": "Installed staging fuel target returns int.",
+      "set": {
+        "Signature.ReturnType": "System.Int32"
+      }
+    },
+    {
+      "name": "OnLootEntity",
+      "reason": "Installed staging loot target returns bool.",
+      "set": {
+        "Signature.ReturnType": "System.Boolean"
+      }
+    },
+    {
+      "name": "OnLootEntity [patch]",
+      "reason": "Installed staging loot patch target returns bool.",
+      "set": {
+        "Signature.ReturnType": "System.Boolean"
+      }
+    },
+    {
+      "name": "OnTerrainCreate",
+      "reason": "Installed staging TerrainMeta.Create returns GameObject.",
+      "set": {
+        "Signature.ReturnType": "UnityEngine.GameObject"
+      }
+    },
+    {
+      "name": "OnEntityBuilt",
+      "reason": "Rust build 25830079 adds failed-placement diagnostics; notify at the first instruction of the non-null completed-placement branch, preserving Planner/GameObject arguments and the native BaseEntity return.",
+      "set": {
+        "Signature.ReturnType": "BaseEntity"
+      }
+    },
+    {
+      "name": "OnServerInitialize",
+      "reason": "Installed staging server initialize target returns bool.",
+      "set": {
+        "Signature.ReturnType": "System.Boolean"
+      }
+    },
+    {
+      "name": "OnPlayerSpawn",
+      "reason": "Installed staging player spawn target returns BasePlayer.",
+      "set": {
+        "Signature.ReturnType": "BasePlayer"
+      }
+    },
+    {
+      "name": "OnApartmentRoomCheckedout",
+      "reason": "Installed staging ApartmentBuilding.TryCheckout returns bool.",
+      "set": {
+        "Signature.ReturnType": "System.Boolean"
+      }
+    },
+    {
+      "name": "OnApartmentRoomCheckout",
+      "reason": "Installed staging ApartmentBuilding.TryCheckout returns bool.",
+      "set": {
+        "Signature.ReturnType": "System.Boolean"
+      }
+    },
+    {
+      "name": "OnPlayerMetabolize",
+      "reason": "Installed staging PlayerMetabolism.ServerUpdate returns bool.",
+      "set": {
+        "Signature.ReturnType": "System.Boolean"
+      }
+    },
+    {
+      "name": "OnBuildingPrivilege",
+      "reason": "Rust build 25830079 adds ignorePosition to the native privilege lookup; bind the new signature while preserving the existing entity/bounds/cache/duration/exclusion hook arguments.",
+      "set": {
+        "ArgumentBehavior": 4,
+        "ArgumentString": "this, a0, a1, a2, a3"
+      }
+    },
+    {
+      "name": "OnExplosiveThrown",
+      "reason": "Installed staging DoThrow reads throw prediction ID and reports failed creation; notify only the non-null spawned-entity success branch after DoThrowImpl returns and before UseItemAmount.",
+      "set": {
+        "InjectionIndex": 65
+      }
+    },
+    {
+      "name": "OnConstructionPlace",
+      "reason": "Installed staging extracts construction initialization/spawn into SpawnConstruction; veto the validated unspawned entity in DoPlacement before entering that helper, preserving API args and cleanup. Recast optional DecayEntity cleanup directly instead of referencing a removed native/synthetic local slot.",
+      "set": {
+        "Instructions": [
+          {
+            "OpCode": "ldstr",
+            "OpType": "String",
+            "Operand": "OnConstructionPlace"
+          },
+          {
+            "OpCode": "ldloc_1",
+            "OpType": "None"
+          },
+          {
+            "OpCode": "ldarg_2",
+            "OpType": "None"
+          },
+          {
+            "OpCode": "ldarg_1",
+            "OpType": "None"
+          },
+          {
+            "OpCode": "box",
+            "OpType": "Type",
+            "Operand": "Assembly-CSharp|Construction/Target"
+          },
+          {
+            "OpCode": "ldloc_0",
+            "OpType": "None"
+          },
+          {
+            "OpCode": "call",
+            "OpType": "Method",
+            "Operand": "Oxide.Core|Oxide.Core.Interface|CallHook(System.String,System.Object,System.Object,System.Object,System.Object)"
+          },
+          {
+            "OpCode": "brfalse_s",
+            "OpType": "Instruction",
+            "Operand": 18
+          },
+          {
+            "OpCode": "ldloc_1",
+            "OpType": "None"
+          },
+          {
+            "OpCode": "call",
+            "OpType": "Method",
+            "Operand": "Assembly-CSharp|BaseNetworkableEx|IsValid(Assembly-CSharp|BaseNetworkable)"
+          },
+          {
+            "OpCode": "brfalse_s",
+            "OpType": "Instruction",
+            "Operand": 14,
+            "ReferencesNewInstruction": true
+          },
+          {
+            "OpCode": "ldloc_1",
+            "OpType": "None"
+          },
+          {
+            "OpCode": "callvirt",
+            "OpType": "Method",
+            "Operand": "Assembly-CSharp|BaseNetworkable|KillMessage"
+          },
+          {
+            "OpCode": "br_s",
+            "OpType": "Instruction",
+            "Operand": 26,
+            "ReferencesNewInstruction": true
+          },
+          {
+            "OpCode": "ldloc_s",
+            "OpType": "VariableIndex",
+            "Operand": "1"
+          },
+          {
+            "OpCode": "isinst",
+            "OpType": "Type",
+            "Operand": "Assembly-CSharp|DecayEntity"
+          },
+          {
+            "OpCode": "call",
+            "OpType": "Method",
+            "Operand": "UnityEngine.CoreModule|UnityEngine.Object|op_Implicit"
+          },
+          {
+            "OpCode": "brfalse_s",
+            "OpType": "Instruction",
+            "Operand": 22,
+            "ReferencesNewInstruction": true
+          },
+          {
+            "OpCode": "ldloc_1",
+            "OpType": "None"
+          },
+          {
+            "OpCode": "isinst",
+            "OpType": "Type",
+            "Operand": "Assembly-CSharp|DecayEntity"
+          },
+          {
+            "OpCode": "callvirt",
+            "OpType": "Method",
+            "Operand": "Assembly-CSharp|DecayEntity|DoServerDestroy"
+          },
+          {
+            "OpCode": "br_s",
+            "OpType": "Instruction",
+            "Operand": 22,
+            "ReferencesNewInstruction": true
+          },
+          {
+            "OpCode": "ldloc_1",
+            "OpType": "None"
+          },
+          {
+            "OpCode": "callvirt",
+            "OpType": "Method",
+            "Operand": "Assembly-CSharp|BaseNetworkable|TerminateOnServer"
+          },
+          {
+            "OpCode": "ldloc_1",
+            "OpType": "None"
+          },
+          {
+            "OpCode": "callvirt",
+            "OpType": "Method",
+            "Operand": "Assembly-CSharp|BaseNetworkable|EntityDestroy"
+          },
+          {
+            "OpCode": "ldnull",
+            "OpType": "None"
+          },
+          {
+            "OpCode": "ret",
+            "OpType": "None"
+          }
+        ]
+      }
+    },
+    {
+      "name": "OnItemRemovedFromContainer",
+      "reason": "Native sourcePlayer is already included upstream; keep the stable container/item notification arguments after successful mutation.",
+      "set": {
+        "ArgumentBehavior": 4,
+        "ArgumentString": "this, a0"
+      }
+    },
+    {
+      "name": "OnItemAddedToContainer",
+      "reason": "Native sourcePlayer is already included upstream; keep the stable container/item notification arguments after successful mutation.",
+      "set": {
+        "ArgumentBehavior": 4,
+        "ArgumentString": "this, a0"
+      }
+    }
+  ]
+}

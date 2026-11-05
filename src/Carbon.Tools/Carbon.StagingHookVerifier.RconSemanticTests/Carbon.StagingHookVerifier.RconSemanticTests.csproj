@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net10.0</TargetFramework><ImplicitUsings>enable</ImplicitUsings><Nullable>enable</Nullable></PropertyGroup>
+  <ItemGroup><PackageReference Include="Lib.Harmony" Version="2.4.2" /></ItemGroup>
+  <ItemGroup>
+    <Compile Include="../Carbon.StagingHookVerifier/RconHookSemantics.cs" Link="RconHookSemantics.cs" />
+    <Compile Include="$(GeneratedHookSources)/GeneratedBase.cs" Link="GeneratedBase.cs" />
+    <Compile Include="$(GeneratedHookSources)/GeneratedPatch.cs" Link="GeneratedPatch.cs" />
+  </ItemGroup>
+</Project>

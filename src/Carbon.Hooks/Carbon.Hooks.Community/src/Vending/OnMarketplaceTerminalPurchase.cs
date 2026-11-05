@@ -29,92 +29,193 @@ public partial class Category_Vending
 		{
 			public static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> Instructions, ILGenerator Generator, MethodBase Method)
 			{
-				var slotsRequired = AccessTools.Method(typeof(VendingMachine), nameof(VendingMachine.GetSlotsRequiredForTransaction),
-					new Type[] { typeof(int), typeof(int) });
-				var transactionActive = AccessTools.Field(typeof(MarketTerminal), "_transactionActive");
-				var player = AccessTools.Field(typeof(BaseEntity.RPCMessage), "player");
-				var callStaticHook = AccessTools.Method(typeof(HookCaller), nameof(HookCaller.CallStaticHook),
-					new Type[] { typeof(uint), typeof(object), typeof(object), typeof(object), typeof(object), typeof(object) });
+				var original = new List<CodeInstruction>(Instructions);
+				var deliveryEligibility = AccessTools.Method(
+					typeof(MarketTerminal),
+					nameof(MarketTerminal.GetDeliveryEligibleVendingMachines),
+					new[] { typeof(List<NetworkableId>) });
+				var readInt32 = AccessTools.Method(typeof(Network.NetRead), nameof(Network.NetRead.Int32));
+				var rpcPlayer = AccessTools.Field(typeof(BaseEntity.RPCMessage), nameof(BaseEntity.RPCMessage.player));
+				var hook = AccessTools.Method(
+					typeof(HookCaller),
+					nameof(HookCaller.CallStaticHook),
+					new[] { typeof(uint), typeof(object), typeof(object), typeof(object), typeof(object), typeof(object) });
 
-				var instructions = new List<CodeInstruction>(Instructions);
-
-				if (slotsRequired == null || transactionActive == null || player == null || callStaticHook == null)
+				if (deliveryEligibility == null || readInt32 == null || rpcPlayer == null || hook == null)
 				{
-					return Unpatched(instructions);
+					throw new InvalidOperationException("Marketplace purchase hook dependencies could not be resolved.");
 				}
 
-				var vending = -1;
-				var sellOrderIndex = -1;
-				var amount = -1;
-				var index = -1;
-
-				for (var i = 2; i < instructions.Count; i++)
+				var eligibilityCalls = FindCalls(original, deliveryEligibility);
+				if (eligibilityCalls.Count != 1)
 				{
-					var instruction = instructions[i];
+					throw new InvalidOperationException(
+						$"Expected one MarketTerminal.GetDeliveryEligibleVendingMachines call, found {eligibilityCalls.Count}.");
+				}
 
-					// Rust keeps reshuffling the locals of this method between updates, so read them off
-					// the 'vending.GetSlotsRequiredForTransaction(sellOrderIndex, amount)' call, which loads
-					// all three of them back to back, instead of hardcoding their indices.
-					if (vending == -1 && instruction.Calls(slotsRequired) && i >= 3
-						&& instructions[i - 3].IsLdloc() && instructions[i - 2].IsLdloc() && instructions[i - 1].IsLdloc())
+				var eligibilityCallIndex = eligibilityCalls[0];
+				var nullIndex = PreviousMeaningfulInstruction(original, eligibilityCallIndex);
+				var anchorIndex = PreviousMeaningfulInstruction(original, nullIndex);
+				if (nullIndex < 0 || original[nullIndex].opcode != OpCodes.Ldnull ||
+					anchorIndex < 0 || original[anchorIndex].opcode != OpCodes.Ldarg_0)
+				{
+					throw new InvalidOperationException(
+						"Marketplace delivery-eligibility call no longer has the expected stack-empty ldarg.0/ldnull prelude.");
+				}
+
+				var body = Method.GetMethodBody() ?? throw new InvalidOperationException("Marketplace purchase target has no method body.");
+				var vendingLocal = FindUniqueLocal(body, typeof(VendingMachine));
+				var intReadLocals = FindStoredLocalsAfterCalls(original, readInt32, eligibilityCallIndex);
+				if (intReadLocals.Count != 2 ||
+					body.LocalVariables[intReadLocals[0]].LocalType != typeof(int) ||
+					body.LocalVariables[intReadLocals[1]].LocalType != typeof(int))
+				{
+					throw new InvalidOperationException(
+						$"Expected two Int32 RPC read locals before marketplace eligibility, found {intReadLocals.Count}.");
+				}
+
+				var continueLabel = Generator.DefineLabel();
+				var edit = new List<CodeInstruction>
+				{
+					new CodeInstruction(OpCodes.Ldc_I4, unchecked((int)2145652880)),
+					new CodeInstruction(OpCodes.Ldarg_0),
+					LoadLocal(vendingLocal),
+					new CodeInstruction(OpCodes.Ldarg_1),
+					new CodeInstruction(OpCodes.Ldfld, rpcPlayer),
+					LoadLocal(intReadLocals[0]),
+					new CodeInstruction(OpCodes.Box, typeof(int)),
+					LoadLocal(intReadLocals[1]),
+					new CodeInstruction(OpCodes.Box, typeof(int)),
+					new CodeInstruction(OpCodes.Call, hook),
+					new CodeInstruction(OpCodes.Brfalse, continueLabel),
+					new CodeInstruction(OpCodes.Ret)
+				};
+
+				edit[0].MoveLabelsFrom(original[anchorIndex]).MoveBlocksFrom(original[anchorIndex]);
+				original[anchorIndex].labels.Add(continueLabel);
+				original.InsertRange(anchorIndex, edit);
+				return original;
+			}
+
+			private static List<int> FindCalls(IReadOnlyList<CodeInstruction> instructions, MethodInfo method)
+			{
+				var result = new List<int>();
+				for (var i = 0; i < instructions.Count; i++)
+				{
+					if ((instructions[i].opcode == OpCodes.Call || instructions[i].opcode == OpCodes.Callvirt) &&
+						Equals(instructions[i].operand, method))
 					{
-						vending = instructions[i - 3].LocalIndex();
-						sellOrderIndex = instructions[i - 2].LocalIndex();
-						amount = instructions[i - 1].LocalIndex();
+						result.Add(i);
+					}
+				}
+
+				return result;
+			}
+
+			private static int FindUniqueLocal(MethodBody body, Type type)
+			{
+				var found = -1;
+				foreach (var local in body.LocalVariables)
+				{
+					if (local.LocalType != type)
+					{
 						continue;
 					}
 
-					// 'this._transactionActive = true' is the first instruction of the try/finally the
-					// transaction runs in, so the hook goes right in front of it: every check has passed
-					// and nothing has been taken off the player yet, and a 'ret' there is still outside
-					// of the protected region.
-					if (index == -1 && instruction.StoresField(transactionActive)
-						&& instructions[i - 1].opcode == OpCodes.Ldc_I4_1 && instructions[i - 2].opcode == OpCodes.Ldarg_0)
+					if (found >= 0)
 					{
-						index = i - 2;
+						throw new InvalidOperationException($"Expected one {type.FullName} local in marketplace purchase target.");
+					}
+
+					found = local.LocalIndex;
+				}
+
+				return found >= 0
+					? found
+					: throw new InvalidOperationException($"No {type.FullName} local was found in marketplace purchase target.");
+			}
+
+			private static List<int> FindStoredLocalsAfterCalls(
+				IReadOnlyList<CodeInstruction> instructions,
+				MethodInfo method,
+				int beforeIndex)
+			{
+				var result = new List<int>();
+				for (var i = 0; i < beforeIndex; i++)
+				{
+					if ((instructions[i].opcode != OpCodes.Call && instructions[i].opcode != OpCodes.Callvirt) ||
+						!Equals(instructions[i].operand, method))
+					{
+						continue;
+					}
+
+					var storeIndex = NextMeaningfulInstruction(instructions, i);
+					if (storeIndex < 0 || !TryGetStoredLocal(instructions[storeIndex], out var localIndex))
+					{
+						throw new InvalidOperationException("Marketplace RPC Int32 read is no longer stored directly into a local.");
+					}
+
+					result.Add(localIndex);
+				}
+
+				return result;
+			}
+
+			private static int PreviousMeaningfulInstruction(IReadOnlyList<CodeInstruction> instructions, int beforeIndex)
+			{
+				for (var i = beforeIndex - 1; i >= 0; i--)
+				{
+					if (instructions[i].opcode != OpCodes.Nop)
+					{
+						return i;
 					}
 				}
 
-				if (vending == -1 || index == -1)
-				{
-					return Unpatched(instructions);
-				}
-
-				var anchor = instructions[index];
-				var resume = Generator.DefineLabel();
-
-				var hook = new List<CodeInstruction>
-				{
-					// hook call start
-					new CodeInstruction(OpCodes.Ldc_I4, unchecked((int)2145652880)).MoveLabelsFrom(anchor),
-					new CodeInstruction(OpCodes.Ldarg_0),
-					CodeInstruction.LoadLocal(vending),
-					new CodeInstruction(OpCodes.Ldarg_1),
-					new CodeInstruction(OpCodes.Ldfld, player),
-					CodeInstruction.LoadLocal(sellOrderIndex),
-					new CodeInstruction(OpCodes.Box, typeof(int)),
-					CodeInstruction.LoadLocal(amount),
-					new CodeInstruction(OpCodes.Box, typeof(int)),
-					new CodeInstruction(OpCodes.Call, callStaticHook),
-					// hook call end
-
-					// return behaviour start
-					new CodeInstruction(OpCodes.Brfalse, resume),
-					new CodeInstruction(OpCodes.Ret)
-					// return behaviour end
-				};
-
-				anchor.labels.Add(resume);
-				instructions.InsertRange(index, hook);
-
-				return instructions;
+				return -1;
 			}
 
-			private static List<CodeInstruction> Unpatched(List<CodeInstruction> instructions)
+			private static int NextMeaningfulInstruction(IReadOnlyList<CodeInstruction> instructions, int afterIndex)
 			{
-				Logger.Warn($"Failed patching '{nameof(OnMarketplaceTerminalPurchase)}', {nameof(MarketTerminal)}.Server_Purchase no longer matches the expected IL");
+				for (var i = afterIndex + 1; i < instructions.Count; i++)
+				{
+					if (instructions[i].opcode != OpCodes.Nop)
+					{
+						return i;
+					}
+				}
 
-				return instructions;
+				return -1;
+			}
+
+			private static bool TryGetStoredLocal(CodeInstruction instruction, out int localIndex)
+			{
+				if (instruction.opcode == OpCodes.Stloc_0) localIndex = 0;
+				else if (instruction.opcode == OpCodes.Stloc_1) localIndex = 1;
+				else if (instruction.opcode == OpCodes.Stloc_2) localIndex = 2;
+				else if (instruction.opcode == OpCodes.Stloc_3) localIndex = 3;
+				else if ((instruction.opcode == OpCodes.Stloc || instruction.opcode == OpCodes.Stloc_S) && instruction.operand is LocalBuilder local)
+					localIndex = local.LocalIndex;
+				else if ((instruction.opcode == OpCodes.Stloc || instruction.opcode == OpCodes.Stloc_S) && instruction.operand is int index)
+					localIndex = index;
+				else
+				{
+					localIndex = -1;
+					return false;
+				}
+
+				return true;
+			}
+
+			private static CodeInstruction LoadLocal(int localIndex)
+			{
+				return localIndex switch
+				{
+					0 => new CodeInstruction(OpCodes.Ldloc_0),
+					1 => new CodeInstruction(OpCodes.Ldloc_1),
+					2 => new CodeInstruction(OpCodes.Ldloc_2),
+					3 => new CodeInstruction(OpCodes.Ldloc_3),
+					_ => new CodeInstruction(OpCodes.Ldloc, localIndex)
+				};
 			}
 		}
 	}

@@ -5,9 +5,9 @@ using static Carbon.Projects.Oxide.Oxide;
 
 namespace Carbon.Generation;
 
-internal static class HookPolicies
+internal static partial class HookPolicies
 {
-	private const string OnClanCreatedKnownMsilHash = "635jwYcCfWiJfWKJFGaT8v7zfRJT0VND5GqMKxQMUVE=";
+	private const string OnClanCreatedKnownMsilHash = "2fryvtABc9jbiXMuMDwBwrurrCfPQRd0jcmtbyO8x/I=";
 	private const string OnClanLogoChangedPatchKnownMsilHash = "KuTX1u22EO8+4GjS+SACsxt4g298bNL2E6omZgUevf8=";
 
 	public static bool MatchesOnClanCreatedAsyncSuccessRetargetPolicy(HookDef.Data hook)
@@ -32,6 +32,21 @@ internal static class HookPolicies
 		       && hook.Name == "OnClanLogoChanged [patch]"
 		       && hook.TypeName == "LocalClan/<SetLogo>d__60"
 		       && hook.Signature.Name == "MoveNext";
+	}
+
+	public static bool MatchesFlameTurretTargetCleanupPolicy(HookDef.Data hook)
+	{
+		return hook.Name == "CanBeTargeted [FlameTurret] [cleanup]"
+		       && hook.TypeName == "FlameTurret"
+		       && hook.Signature.Name == "CheckTrigger";
+	}
+
+	public static bool MatchesFlameTurretCanBeTargetedPolicy(HookDef.Data hook)
+	{
+		return hook.HookName == "CanBeTargeted"
+		       && hook.Name == "CanBeTargeted [FlameTurret]"
+		       && hook.TypeName == "FlameTurret"
+		       && hook.Signature.Name == "CheckTrigger";
 	}
 
 	public static void WarnOnPolicyHashDrift(HookDef.Data hook)
@@ -70,7 +85,53 @@ internal static class HookPolicies
 
 	public static bool TryGeneratePolicyBody(StringBuilder body, HookDef.Data hook)
 	{
-		return TryGenerateOnClanCreatedAsyncSuccessRetargetPolicy(body, hook);
+		return TryGenerateConversationResponsePolicy(body, hook)
+		       || TryGenerateLivestockFamiliarityPolicy(body, hook)
+		       || TryGenerateOnClanCreatedAsyncSuccessRetargetPolicy(body, hook)
+		       || TryGenerateFlameTurretCanBeTargetedPolicy(body, hook)
+		       || TryGenerateFlameTurretTargetCleanupPolicy(body, hook);
+	}
+
+	private static bool TryGenerateLivestockFamiliarityPolicy(StringBuilder body, HookDef.Data hook)
+	{
+		if (hook.TypeName == "Rust.Ai.Gen2.LivestockAnimal" && hook.Signature.Name == "AddFamiliarity" &&
+		    hook.Signature.Parameters.SequenceEqual(new[] { "System.UInt64", "System.Single" }) &&
+		    hook.HookName == "OnLivestockAnimalFamiliarityAdded" &&
+		    hook.Name is "OnLivestockAnimalFamiliarityAdded [new]" or "OnLivestockAnimalFamiliarityAdded [probation]")
+		{
+			// The maintained completion postfix already covers every normal
+			// native return. Retain these upstream aliases and dependencies
+			// without dispatching duplicate completion callbacks.
+			body.AppendLine("public static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions) {");
+			body.AppendLine("return instructions;");
+			body.AppendLine("}");
+			CloseGeneratedHookBody(body);
+			return true;
+		}
+
+		if (hook.TypeName != "Rust.Ai.Gen2.LivestockAnimal" || hook.Signature.Name != "AddFamiliarity" ||
+		    !hook.Signature.Parameters.SequenceEqual(new[] { "System.UInt64", "System.Single" }) ||
+		    hook.Name != hook.HookName || hook.Name is not ("OnLivestockAnimalFamiliarityAdd" or "OnLivestockAnimalFamiliarityAdded"))
+			return false;
+
+		Helper.Parameters.Add(("self", Tools.TypeByNameEx(hook.TypeName) ?? throw new InvalidOperationException("Livestock familiarity target type is missing.")));
+		Helper.Parameters.Add(("userId", typeof(ulong)));
+		Helper.Parameters.Add(("seconds", typeof(float)));
+		if (hook.Name == "OnLivestockAnimalFamiliarityAdd")
+		{
+			Helper.ReturnType = typeof(void);
+			body.AppendLine("public static bool Prefix(object __instance, ulong userId, float seconds) {");
+			body.AppendLine($"return HookCaller.CallStaticHook({HookStringPool.GetOrAdd(hook.HookName)}u, __instance, userId, seconds) == null;");
+		}
+		else
+		{
+			Helper.ReturnDiscarded = true;
+			body.AppendLine("public static void Postfix(object __instance, ulong userId, float seconds, bool __runOriginal) {");
+			body.AppendLine($"if (__runOriginal) HookCaller.CallStaticHook({HookStringPool.GetOrAdd(hook.HookName)}u, __instance, userId, seconds);");
+		}
+		body.AppendLine("}");
+		CloseGeneratedHookBody(body);
+		return true;
 	}
 
 	public static bool TryEmitModifyAnchorPrelude(StringBuilder body, HookDef.Data hook)
@@ -151,5 +212,70 @@ internal static class HookPolicies
 		body.AppendLine("}");
 		body.AppendLine();
 		return true;
+	}
+
+	private static bool TryGenerateFlameTurretTargetCleanupPolicy(StringBuilder body, HookDef.Data hook)
+	{
+		if (!MatchesFlameTurretTargetCleanupPolicy(hook))
+		{
+			return false;
+		}
+
+		body.AppendLine("public static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions) {");
+		body.AppendLine("return instructions;");
+		body.AppendLine("}");
+		CloseGeneratedHookBody(body);
+		return true;
+	}
+
+	private static bool TryGenerateFlameTurretCanBeTargetedPolicy(StringBuilder body, HookDef.Data hook)
+	{
+		if (!MatchesFlameTurretCanBeTargetedPolicy(hook))
+		{
+			return false;
+		}
+
+		Helper.Parameters.Add(("player", Tools.TypeByNameEx("BasePlayer") ?? typeof(object)));
+		Helper.Parameters.Add(("self", Tools.TypeByNameEx("FlameTurret") ?? typeof(object)));
+		Helper.ReturnType = typeof(bool);
+
+		body.AppendLine("public static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions, ILGenerator generator, MethodBase method) {");
+		body.AppendLine("List<CodeInstruction> original = new List<CodeInstruction>(instructions);");
+		body.AppendLine($"int anchorIndex = System.Math.Min({hook.InjectionIndex}, original.Count - 1);");
+		body.AppendLine("int retIndex = original.FindLastIndex(instruction => instruction.opcode == OpCodes.Ret);");
+		body.AppendLine("if (anchorIndex < 0 || retIndex <= 0) return original.AsEnumerable();");
+		body.AppendLine("int returnLoadIndex = retIndex - 1;");
+		body.AppendLine("Label continueLabel = generator.DefineLabel();");
+		body.AppendLine("Label returnLabel = generator.DefineLabel();");
+		body.AppendLine("original[returnLoadIndex].labels.Add(returnLabel);");
+		body.AppendLine("var hookMethod = AccessTools.Method(typeof(HookCaller), nameof(HookCaller.CallStaticHook), new System.Type[] { typeof(uint), typeof(object), typeof(object) });");
+		body.AppendLine("List<CodeInstruction> edit = new List<CodeInstruction>();");
+		body.AppendLine($"edit.Add(new CodeInstruction(OpCodes.Ldc_I4, unchecked((int){HookStringPool.GetOrAdd(hook.HookName)}u)));");
+		body.AppendLine("edit.Add(__GeneratorRuntime.CreateLoadLocalInstruction(generator, method, 7, Carbon.Extensions.AccessToolsEx.TypeByName(\"BasePlayer\")));");
+		body.AppendLine("edit.Add(new CodeInstruction(OpCodes.Ldarg_0));");
+		body.AppendLine("edit.Add(new CodeInstruction(OpCodes.Call, hookMethod));");
+		body.AppendLine("edit.Add(new CodeInstruction(OpCodes.Dup));");
+		body.AppendLine("edit.Add(new CodeInstruction(OpCodes.Isinst, typeof(bool)));");
+		body.AppendLine("edit.Add(new CodeInstruction(OpCodes.Brfalse_S, continueLabel));");
+		body.AppendLine("edit.Add(new CodeInstruction(OpCodes.Unbox_Any, typeof(bool)));");
+		body.AppendLine("edit.Add(__GeneratorRuntime.CreateStoreLocalInstruction(generator, method, 5, typeof(bool)));");
+		body.AppendLine("edit.Add(new CodeInstruction(OpCodes.Leave, returnLabel));");
+		body.AppendLine("CodeInstruction continueInstruction = new CodeInstruction(OpCodes.Pop);");
+		body.AppendLine("continueInstruction.labels.Add(continueLabel);");
+		body.AppendLine("edit.Add(continueInstruction);");
+		body.AppendLine("edit[0].MoveLabelsFrom(original[anchorIndex]).MoveBlocksFrom(original[anchorIndex]);");
+		body.AppendLine("original.InsertRange(anchorIndex, edit);");
+		body.AppendLine("return original.AsEnumerable();");
+		body.AppendLine("}");
+		CloseGeneratedHookBody(body);
+		return true;
+	}
+
+	private static void CloseGeneratedHookBody(StringBuilder body)
+	{
+		body.AppendLine("}");
+		body.AppendLine("}");
+		body.AppendLine("}");
+		body.AppendLine();
 	}
 }

@@ -1,6 +1,7 @@
 [submodule "src/Carbon.Native"]
 	path = src/Carbon.Native
-	url = https://github.com/CarbonCommunity/Carbon.Native.git
+	url = https://github.com/jrecursive/Carbon.git
+	branch = washed/native-diagnostics
 [submodule "tools/depot"]
 	path = tools/depot
 	url = https://github.com/CarbonCommunity/Carbon.Depot.git

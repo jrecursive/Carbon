@@ -12,6 +12,7 @@ internal sealed record HookGenerationResult(
 	string Category,
 	string Source,
 	bool Success,
+	bool IsSkipped,
 	string Action,
 	string? BaseHookName,
 	string? Error
@@ -19,20 +20,27 @@ internal sealed record HookGenerationResult(
 {
 	public static HookGenerationResult Generated(int order, HookDef.Data hook, string source)
 	{
-		return new HookGenerationResult(order, hook.Name, hook.HookName, hook.HookCategory, source, true, string.Empty, hook.BaseHookName,
+		return new HookGenerationResult(order, hook.Name, hook.HookName, hook.HookCategory, source, true, false, string.Empty, hook.BaseHookName,
 			null);
 	}
 
 	public static HookGenerationResult Failed(int order, HookDef.Data hook, string action, string? error = null)
 	{
-		return new HookGenerationResult(order, hook.Name, hook.HookName, hook.HookCategory ?? "None", string.Empty, false, action,
+		return new HookGenerationResult(order, hook.Name, hook.HookName, hook.HookCategory ?? "None", string.Empty, false, false, action,
+			hook.BaseHookName, error);
+	}
+
+	public static HookGenerationResult Skipped(int order, HookDef.Data hook, string action, string? error = null)
+	{
+		return new HookGenerationResult(order, hook.Name, hook.HookName, hook.HookCategory ?? "None", string.Empty, false, true, action,
 			hook.BaseHookName, error);
 	}
 }
 
 internal sealed record HookGenerationReport(
 	IReadOnlyList<HookGenerationResult> SuccessfulHooks,
-	IReadOnlyList<HookGenerationResult> FailedHooks
+	IReadOnlyList<HookGenerationResult> FailedHooks,
+	IReadOnlyList<HookGenerationResult> SkippedHooks
 );
 
 internal sealed record GeneratorOptions(int Jobs, ValidationMode ValidationMode, bool Deterministic);

@@ -238,64 +238,60 @@ public class HookCallerInternal : HookCallerCommon
 					}
 				}
 
-				if (args != null && !SequenceEqual(hook.Parameters, args))
+				try
+				{
+					if (args != null && !SequenceEqual(hook.Parameters, args)) return null;
+					var result2 = (object)default;
+					hookable.TrackStart();
+					var beforeMemory = hookable.TotalMemoryUsed;
+
+					try
+					{
+						result2 = hook.Method.Invoke(hookable, args);
+					}
+					catch (Exception ex)
+					{
+						var exception = ex.InnerException ?? ex;
+						var readableHook = HookStringPool.GetOrAdd(hookId);
+						Carbon.Logger.Error($"Failed to call hook '{readableHook}' on plugin '{hookable.Name} v{hookable.Version}'", exception);
+					}
+
+					hookable.TrackEnd();
+					var afterHookTime = hookable.CurrentHookTime;
+					var afterMemory = hookable.TotalMemoryUsed;
+					var totalMemory = afterMemory - beforeMemory;
+
+					hook?.OnFired(hookable, afterHookTime, totalMemory);
+
+					var afterHookTimeMs = afterHookTime.TotalMilliseconds;
+
+					if (afterHookTimeMs > 100)
+					{
+						if (hookable is Plugin basePlugin && !basePlugin.IsCorePlugin)
+						{
+							var readableHook = HookStringPool.GetOrAdd(hookId);
+							Carbon.Logger.Warn($" {hookable.ToPrettyString()} hook '{readableHook}' took longer than 100ms [{afterHookTimeMs:0}ms]{(hookable.HasGCCollected ? " [GC]" : string.Empty)}");
+
+							var wasLagSpike = afterHookTimeMs >= Community.Runtime.Config.Debugging.HookLagSpikeThreshold;
+
+							if (wasLagSpike)
+							{
+								hook.OnLagSpike(hookable);
+							}
+
+							Analytics.plugin_time_warn(readableHook, basePlugin, afterHookTimeMs, totalMemory, wasLagSpike, hook, hookable);
+						}
+					}
+
+					return result2;
+				}
+				finally
 				{
 					if (hasRescaledBuffer)
 					{
 						HookCaller.Caller.ReturnBuffer(args);
 					}
-
-					return null;
 				}
-
-				var result2 = (object)default;
-				hookable.TrackStart();
-				var beforeMemory = hookable.TotalMemoryUsed;
-
-				try
-				{
-					result2 = hook.Method.Invoke(hookable, args);
-				}
-				catch (Exception ex)
-				{
-					var exception = ex.InnerException ?? ex;
-					var readableHook = HookStringPool.GetOrAdd(hookId);
-					Carbon.Logger.Error($"Failed to call hook '{readableHook}' on plugin '{hookable.Name} v{hookable.Version}'", exception);
-				}
-
-				hookable.TrackEnd();
-				var afterHookTime = hookable.CurrentHookTime;
-				var afterMemory = hookable.TotalMemoryUsed;
-				var totalMemory = afterMemory - beforeMemory;
-
-				hook?.OnFired(hookable, afterHookTime, totalMemory);
-
-				var afterHookTimeMs = afterHookTime.TotalMilliseconds;
-
-				if (afterHookTimeMs > 100)
-				{
-					if (hookable is Plugin basePlugin && !basePlugin.IsCorePlugin)
-					{
-						var readableHook = HookStringPool.GetOrAdd(hookId);
-						Carbon.Logger.Warn($" {hookable.ToPrettyString()} hook '{readableHook}' took longer than 100ms [{afterHookTimeMs:0}ms]{(hookable.HasGCCollected ? " [GC]" : string.Empty)}");
-
-						var wasLagSpike = afterHookTimeMs >= Community.Runtime.Config.Debugging.HookLagSpikeThreshold;
-
-						if (wasLagSpike)
-						{
-							hook.OnLagSpike(hookable);
-						}
-
-						Analytics.plugin_time_warn(readableHook, basePlugin, afterHookTimeMs, totalMemory, wasLagSpike, hook, hookable);
-					}
-				}
-
-				if (hasRescaledBuffer)
-				{
-					HookCaller.Caller.ReturnBuffer(args);
-				}
-
-				return result2;
 			}
 		}
 

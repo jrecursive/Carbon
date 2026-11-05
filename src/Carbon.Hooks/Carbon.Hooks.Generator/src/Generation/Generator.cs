@@ -13,9 +13,39 @@ internal sealed partial class Generator(GeneratorOptions options)
 {
 	internal static readonly HashSet<string> LocalBlacklist = new(StringComparer.Ordinal)
 	{
+		"CanCatchFish",
+		"CanPurchaseItem",
 		"ConsumptionAmountField [AutoTurret]",
+		"OnBonusItemDropped",
+		"OnBonusItemDropped [patch 1]",
+		"OnBonusItemDropped [patch 2]",
+		"OnBonusItemDropped [patch 3]",
+		"OnBonusItemDropped [patch 4]",
+		"OnBonusItemDropped [patch 5]",
+		"OnCentralizedBanCheck",
+		"OnCorpsePopulate",
+		"OnCounterModeToggle",
+		"OnCounterModeToggle [patch]",
+		"OnCounterTargetChange",
+		"OnCounterTargetChange [patch]",
+		"OnEngineStart",
+		"OnEngineStarted",
+		"OnEngineStartFinished",
+		"OnEngineStop",
+		"OnEngineStopped",
+		"OnFishCatch",
+		"OnFishCaught",
+		"OnIORefCleared",
+		"OnIORefCleared [patch]",
+		"OnMapMarkerAdd",
+		"OnMapMarkerAdd [patch]",
+		"OnMapMarkerAdded",
+		"OnSaveLoad",
+		"OnSleepingBagDestroy",
+		"OnSleepingBagDestroyed",
 		"SplashThresholdField [SprayCanSpray]",
-		"IOnPlayerChat[patch]"
+		"IOnPlayerChat[patch]",
+		"IOnPlayerChat[patch2]"
 	};
 
 	private readonly HookValidator _validator = new(options.ValidationMode);
@@ -24,6 +54,7 @@ internal sealed partial class Generator(GeneratorOptions options)
 	{
 		ConcurrentBag<HookGenerationResult> generatedHooks = [];
 		ConcurrentBag<HookGenerationResult> failedHooks = [];
+		ConcurrentBag<HookGenerationResult> skippedHooks = [];
 		var order = 0;
 		var parallelOptions = new ParallelOptions
 		{
@@ -55,6 +86,10 @@ internal sealed partial class Generator(GeneratorOptions options)
 							{
 								generatedHooks.Add(result);
 							}
+							else if (result.IsSkipped)
+							{
+								skippedHooks.Add(result);
+							}
 							else
 							{
 								failedHooks.Add(result);
@@ -80,9 +115,10 @@ internal sealed partial class Generator(GeneratorOptions options)
 
 		var successfulResults = generatedHooks.OrderBy(x => x.Order).ToList();
 		var failedResults = failedHooks.OrderBy(x => x.Order).ToList();
+		var skippedResults = skippedHooks.OrderBy(x => x.Order).ToList();
 		WarnOnMissingDependencies(successfulResults);
 
-		return new HookGenerationReport(successfulResults, failedResults);
+		return new HookGenerationReport(successfulResults, failedResults, skippedResults);
 	}
 
 	private HookGenerationResult GenerateHookSafely(HookWorkItem workItem)
@@ -127,12 +163,12 @@ internal sealed partial class Generator(GeneratorOptions options)
 
 		if (Helper.HookBlacklist.Contains(hook.HookName))
 		{
-			return HookGenerationResult.Failed(workItem.Order, hook, workItem.Action);
+			return HookGenerationResult.Skipped(workItem.Order, hook, workItem.Action, "hook is blacklisted by generator policy");
 		}
 
 		if (Helper.PatchBlacklist.Contains(hook.Name))
 		{
-			return HookGenerationResult.Failed(workItem.Order, hook, workItem.Action);
+			return HookGenerationResult.Skipped(workItem.Order, hook, workItem.Action, "patch is blacklisted by generator policy");
 		}
 
 		if (string.IsNullOrEmpty(hook.HookCategory))
@@ -143,7 +179,7 @@ internal sealed partial class Generator(GeneratorOptions options)
 		if (LocalBlacklist.Contains(hook.HookName))
 		{
 			Logger.Warning($"{hook.HookName} is blacklisted");
-			return HookGenerationResult.Failed(workItem.Order, hook, workItem.Action);
+			return HookGenerationResult.Skipped(workItem.Order, hook, workItem.Action, "hook is blacklisted by generator policy");
 		}
 
 		Type? targetType;

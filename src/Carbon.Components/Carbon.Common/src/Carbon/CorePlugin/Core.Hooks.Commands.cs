@@ -8,7 +8,7 @@ namespace Carbon.Core;
 
 public partial class CorePlugin
 {
-	private static Dictionary<int, ArgPool> _argumentBuffer = [with(ArgPool.DefaultCapacity)];
+	private static Dictionary<int, ArgPool> _argumentBuffer = [];
 
 	public static string[] AllocateBuffer(int count)
 	{
