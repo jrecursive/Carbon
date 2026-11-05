@@ -52,7 +52,7 @@ internal static class ConversationResponseSemantics
     {
         read ??= method => PatchProcessor.GetOriginalInstructions(method, out _);
         Require(method.DeclaringType?.FullName == "NPCTalking" && method.Name == "HandleResponse" &&
-            method.Module.ModuleVersionId.ToString() == "d49eb2a7-6812-4cba-aca8-e36577de4e28" &&
+            method.Module.ModuleVersionId.ToString() == "1e62a074-0b72-46e8-bf05-a71e227d554d" &&
             method.GetParameters().Select(p => p.ParameterType.FullName).SequenceEqual(new[] {
                 "BasePlayer", "System.Int32", "System.Int32", "System.UInt32", "System.UInt32", "NetworkableId" }),
             "Conversation hooks must retain the reviewed NPC typed response entrypoint.");
