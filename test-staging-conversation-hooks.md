@@ -25,3 +25,11 @@ other non-null veto returns using plain authoring-node data and a stub dispatche
 no entity, conversation condition, reward, mission or network method executes. It runs against publicized and raw assemblies.
 Generated source and build work stay disposable; no runtime or installed
 reference is modified. The same semantic check runs in `verify-staging-hooks.sh`.
+
+For build `26445886`, the reviewed module advances to
+`d49eb2a7-6812-4cba-aca8-e36577de4e28`. Independent previous/raw/publicized
+inspection proves all five pinned response/host method shapes unchanged,
+including resolved instructions and branch targets, local types, stack size,
+local initialization and exception-region count. Only the module guards change;
+the five body hashes, callback ABI, null-only veto, original response selection,
+successful/ended transition and either-order detach policy stay intact.

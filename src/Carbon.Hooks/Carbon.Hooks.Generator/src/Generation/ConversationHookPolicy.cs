@@ -25,7 +25,7 @@ internal static partial class HookPolicies
 
         body.AppendLine("""
 public static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions, ILGenerator generator, MethodBase method) {
-    if (method.Module.ModuleVersionId.ToString() != "a5e8e418-dabf-43a5-8e0d-9fd08f1715b1")
+    if (method.Module.ModuleVersionId.ToString() != "d49eb2a7-6812-4cba-aca8-e36577de4e28")
         throw new InvalidOperationException("Unreviewed native NPC conversation module.");
     VerifyNative(method);
     var il = new List<CodeInstruction>(instructions);
