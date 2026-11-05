@@ -1,1 +1,253 @@
-{"patches":[]}
+{
+  "patches": [
+    {
+      "name": "OnInterferenceUpdate",
+      "reason": "Frozen public hook definition and full native target body match the independently reviewed staging overlay: OnInterferenceUpdate",
+      "set": {
+        "Signature.ReturnType": "System.Boolean"
+      }
+    },
+    {
+      "name": "CanUseFuel",
+      "reason": "Frozen public hook definition and full native target body match the independently reviewed staging overlay: CanUseFuel",
+      "set": {
+        "Signature.ReturnType": "System.Int32"
+      }
+    },
+    {
+      "name": "OnLootEntity",
+      "reason": "Frozen public hook definition and full native target body match the independently reviewed staging overlay: OnLootEntity",
+      "set": {
+        "Signature.ReturnType": "System.Boolean"
+      }
+    },
+    {
+      "name": "OnLootEntity [patch]",
+      "reason": "Frozen public hook definition and full native target body match the independently reviewed staging overlay: OnLootEntity [patch]",
+      "set": {
+        "Signature.ReturnType": "System.Boolean"
+      }
+    },
+    {
+      "name": "OnTerrainCreate",
+      "reason": "Frozen public hook definition and full native target body match the independently reviewed staging overlay: OnTerrainCreate",
+      "set": {
+        "Signature.ReturnType": "UnityEngine.GameObject"
+      }
+    },
+    {
+      "name": "OnEntityBuilt",
+      "reason": "Frozen public hook definition and full native target body match the independently reviewed staging overlay: OnEntityBuilt",
+      "set": {
+        "Signature.ReturnType": "BaseEntity"
+      }
+    },
+    {
+      "name": "OnServerInitialize",
+      "reason": "Frozen public hook definition and full native target body match the independently reviewed staging overlay: OnServerInitialize",
+      "set": {
+        "Signature.ReturnType": "System.Boolean"
+      }
+    },
+    {
+      "name": "OnPlayerSpawn",
+      "reason": "Frozen public hook definition and full native target body match the independently reviewed staging overlay: OnPlayerSpawn",
+      "set": {
+        "Signature.ReturnType": "BasePlayer"
+      }
+    },
+    {
+      "name": "OnApartmentRoomCheckedout",
+      "reason": "Frozen public hook definition and full native target body match the independently reviewed staging overlay: OnApartmentRoomCheckedout",
+      "set": {
+        "Signature.ReturnType": "System.Boolean"
+      }
+    },
+    {
+      "name": "OnApartmentRoomCheckout",
+      "reason": "Frozen public hook definition and full native target body match the independently reviewed staging overlay: OnApartmentRoomCheckout",
+      "set": {
+        "Signature.ReturnType": "System.Boolean"
+      }
+    },
+    {
+      "name": "OnPlayerMetabolize",
+      "reason": "Frozen public hook definition and full native target body match the independently reviewed staging overlay: OnPlayerMetabolize",
+      "set": {
+        "Signature.ReturnType": "System.Boolean"
+      }
+    },
+    {
+      "name": "OnBuildingPrivilege",
+      "reason": "Frozen public hook definition and full native target body match the independently reviewed staging overlay: OnBuildingPrivilege",
+      "set": {
+        "ArgumentBehavior": 4,
+        "ArgumentString": "this, a0, a1, a2, a3"
+      }
+    },
+    {
+      "name": "OnExplosiveThrown",
+      "reason": "Frozen public hook definition and full native target body match the independently reviewed staging overlay: OnExplosiveThrown",
+      "set": {
+        "InjectionIndex": 65
+      }
+    },
+    {
+      "name": "OnConstructionPlace",
+      "reason": "Frozen public hook definition and full native target body match the independently reviewed staging overlay: OnConstructionPlace",
+      "set": {
+        "Instructions": [
+          {
+            "OpCode": "ldstr",
+            "OpType": "String",
+            "Operand": "OnConstructionPlace"
+          },
+          {
+            "OpCode": "ldloc_1",
+            "OpType": "None"
+          },
+          {
+            "OpCode": "ldarg_2",
+            "OpType": "None"
+          },
+          {
+            "OpCode": "ldarg_1",
+            "OpType": "None"
+          },
+          {
+            "OpCode": "box",
+            "OpType": "Type",
+            "Operand": "Assembly-CSharp|Construction/Target"
+          },
+          {
+            "OpCode": "ldloc_0",
+            "OpType": "None"
+          },
+          {
+            "OpCode": "call",
+            "OpType": "Method",
+            "Operand": "Oxide.Core|Oxide.Core.Interface|CallHook(System.String,System.Object,System.Object,System.Object,System.Object)"
+          },
+          {
+            "OpCode": "brfalse_s",
+            "OpType": "Instruction",
+            "Operand": 18
+          },
+          {
+            "OpCode": "ldloc_1",
+            "OpType": "None"
+          },
+          {
+            "OpCode": "call",
+            "OpType": "Method",
+            "Operand": "Assembly-CSharp|BaseNetworkableEx|IsValid(Assembly-CSharp|BaseNetworkable)"
+          },
+          {
+            "OpCode": "brfalse_s",
+            "OpType": "Instruction",
+            "Operand": 14,
+            "ReferencesNewInstruction": true
+          },
+          {
+            "OpCode": "ldloc_1",
+            "OpType": "None"
+          },
+          {
+            "OpCode": "callvirt",
+            "OpType": "Method",
+            "Operand": "Assembly-CSharp|BaseNetworkable|KillMessage"
+          },
+          {
+            "OpCode": "br_s",
+            "OpType": "Instruction",
+            "Operand": 26,
+            "ReferencesNewInstruction": true
+          },
+          {
+            "OpCode": "ldloc_s",
+            "OpType": "VariableIndex",
+            "Operand": "1"
+          },
+          {
+            "OpCode": "isinst",
+            "OpType": "Type",
+            "Operand": "Assembly-CSharp|DecayEntity"
+          },
+          {
+            "OpCode": "call",
+            "OpType": "Method",
+            "Operand": "UnityEngine.CoreModule|UnityEngine.Object|op_Implicit"
+          },
+          {
+            "OpCode": "brfalse_s",
+            "OpType": "Instruction",
+            "Operand": 22,
+            "ReferencesNewInstruction": true
+          },
+          {
+            "OpCode": "ldloc_1",
+            "OpType": "None"
+          },
+          {
+            "OpCode": "isinst",
+            "OpType": "Type",
+            "Operand": "Assembly-CSharp|DecayEntity"
+          },
+          {
+            "OpCode": "callvirt",
+            "OpType": "Method",
+            "Operand": "Assembly-CSharp|DecayEntity|DoServerDestroy"
+          },
+          {
+            "OpCode": "br_s",
+            "OpType": "Instruction",
+            "Operand": 22,
+            "ReferencesNewInstruction": true
+          },
+          {
+            "OpCode": "ldloc_1",
+            "OpType": "None"
+          },
+          {
+            "OpCode": "callvirt",
+            "OpType": "Method",
+            "Operand": "Assembly-CSharp|BaseNetworkable|TerminateOnServer"
+          },
+          {
+            "OpCode": "ldloc_1",
+            "OpType": "None"
+          },
+          {
+            "OpCode": "callvirt",
+            "OpType": "Method",
+            "Operand": "Assembly-CSharp|BaseNetworkable|EntityDestroy"
+          },
+          {
+            "OpCode": "ldnull",
+            "OpType": "None"
+          },
+          {
+            "OpCode": "ret",
+            "OpType": "None"
+          }
+        ]
+      }
+    },
+    {
+      "name": "OnItemRemovedFromContainer",
+      "reason": "Frozen public hook definition and full native target body match the independently reviewed staging overlay: OnItemRemovedFromContainer",
+      "set": {
+        "ArgumentBehavior": 4,
+        "ArgumentString": "this, a0"
+      }
+    },
+    {
+      "name": "OnItemAddedToContainer",
+      "reason": "Frozen public hook definition and full native target body match the independently reviewed staging overlay: OnItemAddedToContainer",
+      "set": {
+        "ArgumentBehavior": 4,
+        "ArgumentString": "this, a0"
+      }
+    }
+  ]
+}
